@@ -8,7 +8,7 @@ from jis import Sorter
 PACKAGE_REGEX = "^\\s*package\\s+"
 IMPORT_REGEX = "^\\s*import\\s+"
 SINGLE_LINE_COMMENT_REGEX = "^\\s*//"
-CLASS_NAME_REGEX = "(^|<|\\(|\\t| |,)([A-Z]+[A-Za-z0-9_$]*)"
+CLASS_NAME_REGEX = "(^|<|\\(|\\t| |,@)([A-Z]+[A-Za-z0-9_$]*)"
 
 class JavaFile:
     def __init__(self):
