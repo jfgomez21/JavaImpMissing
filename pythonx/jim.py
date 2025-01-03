@@ -1,6 +1,7 @@
 import vim
 import re
 import sys
+import os
 
 from jis import Sorter
 
@@ -22,19 +23,20 @@ class JavaFile:
 
 def load_java_imp_class_file(filepath):
     results = {}
+    
+    if os.path.isfile(filepath):
+        with open(filepath, "r") as file:
+            for line in file:
+                values = line.strip().split(" ")
 
-    with open(filepath, "r") as file:
-        for line in file:
-            values = line.strip().split(" ")
-            
-            if len(values) > 1:
-                className = values[0]
+                if len(values) > 1:
+                    className = values[0]
 
-                if not className in results:
-                    results[className] = list()
+                    if not className in results:
+                        results[className] = list()
 
-                for package in values[1:]:
-                    results[className].append(package)
+                    for package in values[1:]:
+                        results[className].append(package)
 
     return results
 
