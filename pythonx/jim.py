@@ -61,10 +61,10 @@ def read_java_buffer():
             results.last_import_line_number = lineNum
 
     if results.first_import_line_number == -1 and results.package_line_number > -1:
-        results.first_import_line_number = file.package_line_number
+        results.first_import_line_number = results.package_line_number + 1
 
     if results.last_import_line_number == -1 and results.package_line_number > -1:
-        results.last_import_line_number = file.package_line_number
+        results.last_import_line_number = results.package_line_number + 1
 
     for statement in statements:
         index = statement.rindex(".")
@@ -72,10 +72,7 @@ def read_java_buffer():
 
         className = statement[index + 1:end]
 
-        if not className in results.file_imports:
-            results.file_imports[className] = list()
-
-        results.file_imports[className].append(statement[len("imports ") : end])
+        results.file_imports[className] = statement[len("import ") : end]
     
     return results
 
@@ -137,9 +134,10 @@ def insert_import_statements(file, sort, replace):
     if sort:
         Sorter()
 
-javaImpClasses = load_java_imp_class_file(vim.eval("g:JavaImpClassList"))
-javaImpChoices = load_java_imp_class_file("{0}/choices.txt".format(vim.eval("g:JavaImpDataDir")))
-file = read_java_buffer()
+if __name__ == '__main__':
+	javaImpClasses = load_java_imp_class_file(vim.eval("g:JavaImpClassList"))
+	javaImpChoices = load_java_imp_class_file("{0}/choices.txt".format(vim.eval("g:JavaImpDataDir")))
+	file = read_java_buffer()
 
-process_java_buffer(javaImpClasses, javaImpChoices, file)
-insert_import_statements(file, True, False)
+	process_java_buffer(javaImpClasses, javaImpChoices, file)
+	insert_import_statements(file, True, False)
