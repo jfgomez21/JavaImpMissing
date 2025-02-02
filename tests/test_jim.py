@@ -107,9 +107,113 @@ class TestJavaImpMissing(unittest.TestCase):
 
 			self.assertEqual(True, key in results.new_imports)
 			self.assertEqual(value, results.new_imports[key])
+	
+	def test_insert_import_statements(self):
+		vim.current.buffer.append("package abc;")
+		vim.current.buffer.append("")
+		vim.current.buffer.append("import java.util.List;")
+		vim.current.buffer.append("")
+		vim.current.buffer.append("List")
+		vim.current.buffer.append("java.util.List")
+		vim.current.buffer.append("ArrayList")
+		vim.current.buffer.append("File")
+		vim.current.buffer.append("AbcDef")
 
+		results = jim.JavaFile()
+		results.package_line_number = 0
+		results.first_import_line_number = 2
+		results.last_import_line_number = 2
+		results.package_name = "abc"
+		results.file_imports = {"List" : "java.util.List"}
+		results.new_imports = {"File" : "java.io.File", "ArrayList" : "java.util.ArrayList", "AbcDef" : "pk2.AbcDef", "String" : "java.lang.String"}
 
+		jim.insert_import_statements(results, True, False)
 
+		expected = []
+		expected.append("package abc;")
+		expected.append("")
+		expected.append("import java.util.List;")
+		expected.append("import java.io.File;")
+		expected.append("import java.util.ArrayList;")
+		expected.append("import pk2.AbcDef;")
+		expected.append("")
+		expected.append("List")
+		expected.append("java.util.List")
+		expected.append("ArrayList")
+		expected.append("File")
+		expected.append("AbcDef")
+
+		for index, line in enumerate(expected):
+			self.assertEqual(line, vim.current.buffer[index])
+
+	def test_insert_import_statements_no_existing_imports(self):
+		vim.current.buffer.append("package abc;")
+		vim.current.buffer.append("")
+		vim.current.buffer.append("List")
+		vim.current.buffer.append("java.util.List")
+		vim.current.buffer.append("ArrayList")
+		vim.current.buffer.append("File")
+		vim.current.buffer.append("AbcDef")
+
+		results = jim.JavaFile()
+		results.package_line_number = 0
+		results.first_import_line_number = 1
+		results.last_import_line_number = 1
+		results.package_name = "abc"
+		results.new_imports = {"List" : "java.util.List", "File" : "java.io.File", "ArrayList" : "java.util.ArrayList", "AbcDef" : "pk2.AbcDef", "String" : "java.lang.String"}
+
+		jim.insert_import_statements(results, True, False)
+
+		expected = []
+		expected.append("package abc;")
+		expected.append("")
+		expected.append("import java.util.List;")
+		expected.append("import java.io.File;")
+		expected.append("import java.util.ArrayList;")
+		expected.append("import pk2.AbcDef;")
+		expected.append("")
+		expected.append("List")
+		expected.append("java.util.List")
+		expected.append("ArrayList")
+		expected.append("File")
+		expected.append("AbcDef")
+
+		for index, line in enumerate(expected):
+			self.assertEqual(line, vim.current.buffer[index])
+	
+	def test_insert_import_statements_no_existing_imports_no_empty_line(self):
+		vim.current.buffer.append("package abc;")
+		vim.current.buffer.append("List")
+		vim.current.buffer.append("java.util.List")
+		vim.current.buffer.append("ArrayList")
+		vim.current.buffer.append("File")
+		vim.current.buffer.append("AbcDef")
+
+		results = jim.JavaFile()
+		results.package_line_number = 0
+		results.first_import_line_number = 1
+		results.last_import_line_number = 1
+		results.package_name = "abc"
+		results.new_imports = {"List" : "java.util.List", "File" : "java.io.File", "ArrayList" : "java.util.ArrayList", "AbcDef" : "pk2.AbcDef", "String" : "java.lang.String"}
+
+		jim.insert_import_statements(results, True, False)
+
+		expected = []
+		expected.append("package abc;")
+		expected.append("")
+		expected.append("import java.util.List;")
+		expected.append("import java.io.File;")
+		expected.append("import java.util.ArrayList;")
+		expected.append("import pk2.AbcDef;")
+		expected.append("")
+		expected.append("List")
+		expected.append("java.util.List")
+		expected.append("ArrayList")
+		expected.append("File")
+		expected.append("AbcDef")
+
+		for index, line in enumerate(expected):
+			self.assertEqual(line, vim.current.buffer[index])
 
 if __name__ == '__main__':
     unittest.main()

@@ -117,27 +117,38 @@ def process_java_buffer(javaImpClasses, javaImpChoices, file):
 def insert_import_statements(file, sort, replace):
     statements = list()
 
-    if file.package_line_number > -1 and len(file.file_imports) < 1:
-        statements.append("");
-
     for package in file.new_imports.values():
         if not package.startswith("java.lang") and not is_same_package(file.package_name, package):
             statements.append("import {0};".format(package))
     
     index = file.last_import_line_number + 1
 
+    if len(file.file_imports) < 1:
+        index = file.package_line_number + 1
+
+        vim.current.buffer.append("", index)
+
+        index = index + 1
+
+    #TODO - handle no space between package and first import statement
+
     vim.current.buffer.append(statements, index)
 
-    if vim.current.buffer[index + len(statements)].strip() != "":
-        vim.current.buffer.append("", index + len(statements))
+    index = index + len(statements)
+
+    if vim.current.buffer[index].strip() != "":
+        vim.current.buffer.append("", index)
 
     if sort:
         Sorter()
 
-if __name__ == '__main__':
-	javaImpClasses = load_java_imp_class_file(vim.eval("g:JavaImpClassList"))
-	javaImpChoices = load_java_imp_class_file("{0}/choices.txt".format(vim.eval("g:JavaImpDataDir")))
-	file = read_java_buffer()
+def execute(classes, choices):
+    javaImpClasses = load_java_imp_class_file(classes)
+    javaImpChoices = load_java_imp_class_file(choices)
+    file = read_java_buffer()
 
-	process_java_buffer(javaImpClasses, javaImpChoices, file)
-	insert_import_statements(file, True, False)
+    process_java_buffer(javaImpClasses, javaImpChoices, file)
+    insert_import_statements(file, True, False)
+
+if __name__ == '__main__':
+    execute(vim.eval("g:JavaImpClassList"), "{0}/choices.txt".format(vim.eval("g:JavaImpDataDir")))
