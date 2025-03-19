@@ -1,25 +1,13 @@
-import vim
-import re
-import sys
+import json
 import os
+import re
+import subprocess
+import sys
+import vim
 
 from jis import Sorter
 
-PACKAGE_REGEX = "^\\s*package\\s+"
-IMPORT_REGEX = "^\\s*import\\s+"
-SINGLE_LINE_COMMENT_REGEX = "^\\s*//"
-CLASS_NAME_REGEX = "(^|<|\\(|\\t| |,@)([A-Z]+[A-Za-z0-9_$]*)"
-
-class JavaFile:
-    def __init__(self):
-        self.package_line_number = -1
-        self.first_import_line_number = -1
-        self.last_import_line_number = -1
-        
-        self.package_name = None
-        self.file_imports = {}
-        self.new_imports = {}
-        self.found_imports = {}
+#TODO - add logging
 
 def load_java_imp_class_file(filepath):
     results = {}
@@ -31,124 +19,118 @@ def load_java_imp_class_file(filepath):
 
                 if len(values) > 1:
                     className = values[0]
-
-                    if not className in results:
-                        results[className] = list()
-
-                    for package in values[1:]:
-                        results[className].append(package)
+                    results[className] = values[1]
 
     return results
 
-def read_java_buffer():
-    results = JavaFile()
-    statements = list()
-    
-    importPattern = re.compile(IMPORT_REGEX)
-    packagePattern = re.compile(PACKAGE_REGEX)
+def parse_java_file():
+    plugin_path = os.path.dirname(os.path.dirname(sys.argv[0]))
+    jar_file = "{0}/java/jim-1.0-jar-with-dependencies.jar".format(plugin_path)
 
-    for lineNum, line in enumerate(vim.current.buffer):
-        if results.first_import_line_number == -1 and packagePattern.match(line):
-            results.package_name = line[len("package ") : len(line) - 1]
-            results.package_line_number = lineNum
-            
-        if importPattern.match(line):
-            # Indicate the Start of the Import Statement Range if not yet set.
-            if results.first_import_line_number == -1:
-                results.first_import_line_number = lineNum
-    
-            statements.append(line)
-            results.last_import_line_number = lineNum
+    args = ["java", "-jar", jar_file, "parse", vim.current.buffer.name]
 
-    if results.first_import_line_number == -1 and results.package_line_number > -1:
-        results.first_import_line_number = results.package_line_number + 1
+    result = subprocess.run(args, capture_output=True, text=True)
 
-    if results.last_import_line_number == -1 and results.package_line_number > -1:
-        results.last_import_line_number = results.package_line_number + 1
+    return result
 
-    for statement in statements:
-        index = statement.rindex(".")
-        end = len(statement) - 1
+def show_error_message(msg):
+    vim.command("echohl ErrorMsg")
+    vim.command("echo \"{0}\"".format(msg))
+    vim.command("echohl None")
 
-        className = statement[index + 1:end]
+#TODO - save choices
 
-        results.file_imports[className] = statement[len("import ") : end]
-    
-    return results
+def process_json_results(js):
+    for identifier in js["types"]:
+        line = identifier["position"]["line"]
+        column = identifier["position"]["column"]
 
-def is_same_package(pkg1, pkg2):
-    index = pkg2.rindex(".")
+        vim.eval("cursor({0}, {1})".format(line, 1))
+        match_id = vim.eval("matchaddpos(\"{0}\", [[{1}, {2}, {3}]])".format("Search", line, column, len(identifier["value"])))
+        vim.command("redraw")
 
-    return pkg1 == pkg2[0:index]
+        if identifier["choices"]:
+            prompt = "Multiple matches exist for {0}. Select one -".format(identifier["value"])
 
-def process_java_buffer(javaImpClasses, javaImpChoices, file):
-    p1 = re.compile(SINGLE_LINE_COMMENT_REGEX)
-    p2 = re.compile(CLASS_NAME_REGEX)
+            for index, choice in enumerate(identifier["choices"]):
+                prompt = "{0}\n{1} - {2}".format(prompt, index + 1, choice)
 
-    for line in vim.current.buffer[file.last_import_line_number + 1:]:
-        results = p1.findall(line)
+            skip_option = len(identifier["choices"]) + 1
+
+            prompt = "{0}\n{1} - {2}\n".format(prompt, skip_option, "skip")
+
+            vim.command("echohl MoreMsg")
+            choice = vim.eval("input(\"{0}\")".format(prompt))
+            vim.command("echohl None")
+
+            if choice.isdigit():
+                index = int(float(choice)) - 1
+
+                if index >= 0 and index < len(identifier["choices"]):
+                    js["imports"].append({"value" : identifier["choices"][index]}) 
+        else:
+            vim.command("echohl MoreMsg")
+            vim.eval("input(\"{0}\")".format("No match found for {0}.".format(identifier["value"])))
+            vim.command("echohl None")
+
+        vim.eval("matchdelete({0})".format(match_id))
+
+def insert_import_statements(js):
+    start_line = js["firstImportStatementLine"]
+    end_line = js["lastImportStatementLine"]
+
+    if start_line > 0:
+        del vim.current.buffer[start_line - 1 : end_line]
+
+    package_line = js["package"]["position"]["line"]
+
+    if package_line > 0:
+        start_line = package_line
+
+        while not vim.current.buffer[start_line].strip():
+            del vim.current.buffer[start_line]
+
+        vim.current.buffer.append("", start_line)
+
+        start_line = start_line + 1
+    else:
+        start_line = 1
+
+    for index, import_statement in enumerate(js["imports"]):
+        vim.current.buffer.append("import {0};".format(import_statement["value"]), start_line + index)
+
+    vim.current.buffer.append("", start_line + len(js["imports"]))
+
+def execute():
+    #javaImpChoices = load_java_imp_class_file(choices)
+    cursor_position = vim.eval("getcurpos()")
+    result = parse_java_file()
+
+    if result.returncode != 0:
+        message = result.stdout
+
+        if message == "":
+            message = result.stderr
         
-        if not results:
-            results = p2.findall(line)
-        
-            if results:
-                for result in results:
-                    className = result[1]
-                    
-                    #TODO - handle if import not found
+        show_error_message(message)
 
-                    if not className in file.found_imports:
-                        if className in file.file_imports:
-                            file.found_imports[className] = file.file_imports[className]
-                        elif className in javaImpChoices:
-                            #TODO - handle if multiple choices exists
+        return
 
-                            file.new_imports[className] = javaImpChoices[className][0]
-                            file.found_imports[className] = javaImpChoices[className][0]
-                        elif className in javaImpClasses:
-                            #TODO - handle if multiple choices exists
+    js = json.loads(result.stdout) 
 
-                            packages = javaImpClasses[className]
+    if js["errorMessages"]:
+        show_error_message("\n".join(js["errorMessages"]))
+        return
 
-                            if len(packages) == 1:
-                                file.new_imports[className] = packages[0]
-                                file.found_imports[className] = packages[0]
-                            
-def insert_import_statements(file, sort, replace):
-    statements = list()
+    process_json_results(js)
+    insert_import_statements(js)
 
-    for package in file.new_imports.values():
-        if not package.startswith("java.lang") and not is_same_package(file.package_name, package):
-            statements.append("import {0};".format(package))
-    
-    index = file.last_import_line_number + 1
+    Sorter()
 
-    if len(file.file_imports) < 1:
-        index = file.package_line_number + 1
+    if js["types"]:
+        vim.eval("cursor({0}, {1})".format(cursor_position[1], cursor_position[2]))
 
-        vim.current.buffer.append("", index)
-
-        index = index + 1
-
-    #TODO - handle no space between package and first import statement
-
-    vim.current.buffer.append(statements, index)
-
-    index = index + len(statements)
-
-    if vim.current.buffer[index].strip() != "":
-        vim.current.buffer.append("", index)
-
-    if sort:
-        Sorter()
-
-def execute(classes, choices):
-    javaImpClasses = load_java_imp_class_file(classes)
-    javaImpChoices = load_java_imp_class_file(choices)
-    file = read_java_buffer()
-
-    process_java_buffer(javaImpClasses, javaImpChoices, file)
-    insert_import_statements(file, True, False)
+    vim.command("redraw")
 
 if __name__ == '__main__':
-    execute(vim.eval("g:JavaImpClassList"), "{0}/choices.txt".format(vim.eval("g:JavaImpDataDir")))
+    execute()

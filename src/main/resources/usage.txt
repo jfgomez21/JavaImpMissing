@@ -1,0 +1,7 @@
+jim [-h | --help] <command> [<args]
+
+-h, --help		Displays this help message
+command
+	generate	Generates the jim data file containing the list of classes
+	parse		Parses a single java source file and returns the list of known imports and unknown types
+	import		Returns the list possible imports based on the type name
