@@ -1,8 +1,0 @@
-jim generate [-h | --help][-p | --pretty-print][--class-file classes][--choice-file choices] filename
-
--h, --help		Displays this usage message
--p, --pretty-print	Pretty prints the json output
---class-file classes	File path to the class list
---choices-file choices 	File path to the list of recent choices
-
-filename	The java file to parse

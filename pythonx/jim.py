@@ -23,24 +23,49 @@ def load_java_imp_class_file(filepath):
 
     return results
 
-def parse_java_file():
+def run_java_command(args):
     plugin_path = os.path.dirname(os.path.dirname(sys.argv[0]))
     jar_file = "{0}/java/jim-1.0-jar-with-dependencies.jar".format(plugin_path)
 
-    args = ["java", "-jar", jar_file, "parse", vim.current.buffer.name]
+    arguments = ["java", "-jar", jar_file]
+    arguments.extend(args)
 
-    result = subprocess.run(args, capture_output=True, text=True)
-
-    return result
+    return subprocess.run(arguments, capture_output=True, text=True)
 
 def show_error_message(msg):
-    vim.command("echohl ErrorMsg")
-    vim.command("echo \"{0}\"".format(msg))
-    vim.command("echohl None")
+    try:
+        vim.command("echohl ErrorMsg")
+        vim.command("echo \"{0}\"".format(msg))
+        vim.command("echohl None")
+    except vim.error:
+        pass
 
 #TODO - save choices
+def select_choice(className, choices):
+    prompt = "Multiple matches exist for {0}. Select one -".format(className)
 
-def process_json_results(js):
+    for index, choice in enumerate(choices):
+        prompt = "{0}\n{1} - {2}".format(prompt, index + 1, choice)
+
+    skip_option = len(choices) + 1
+
+    prompt = "{0}\n{1} - {2}\n".format(prompt, skip_option, "skip")
+
+    vim.command("echohl MoreMsg")
+    choice = vim.eval("input(\"{0}\")".format(prompt))
+    vim.command("echohl None")
+
+    selection = None
+
+    if choice.isdigit():
+        index = int(float(choice)) - 1
+
+        if index >= 0 and index < len(choices):
+            selection = choices[index]
+
+    return selection
+
+def process_results(js):
     for identifier in js["types"]:
         line = identifier["position"]["line"]
         column = identifier["position"]["column"]
@@ -50,24 +75,11 @@ def process_json_results(js):
         vim.command("redraw")
 
         if identifier["choices"]:
-            prompt = "Multiple matches exist for {0}. Select one -".format(identifier["value"])
+            selection = select_choice(identifier["value"], identifier["choices"])
 
-            for index, choice in enumerate(identifier["choices"]):
-                prompt = "{0}\n{1} - {2}".format(prompt, index + 1, choice)
-
-            skip_option = len(identifier["choices"]) + 1
-
-            prompt = "{0}\n{1} - {2}\n".format(prompt, skip_option, "skip")
-
-            vim.command("echohl MoreMsg")
-            choice = vim.eval("input(\"{0}\")".format(prompt))
-            vim.command("echohl None")
-
-            if choice.isdigit():
-                index = int(float(choice)) - 1
-
-                if index >= 0 and index < len(identifier["choices"]):
-                    js["imports"].append({"value" : identifier["choices"][index]}) 
+            if selection:
+                js["imports"].append({"value" : selection}) 
+                #TODO - add selection to choices
         else:
             vim.command("echohl MoreMsg")
             vim.eval("input(\"{0}\")".format("No match found for {0}.".format(identifier["value"])))
@@ -104,7 +116,7 @@ def insert_import_statements(js):
 def execute():
     #javaImpChoices = load_java_imp_class_file(choices)
     cursor_position = vim.eval("getcurpos()")
-    result = parse_java_file()
+    result = run_java_command([vim.current.buffer.name])
 
     if result.returncode != 0:
         message = result.stdout
@@ -122,7 +134,7 @@ def execute():
         show_error_message("\n".join(js["errorMessages"]))
         return
 
-    process_json_results(js)
+    process_results(js)
     insert_import_statements(js)
 
     Sorter()

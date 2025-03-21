@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
+import java.io.StringReader;
 
 import java.nio.file.FileSystem;
 import java.nio.file.Files;
@@ -13,6 +14,7 @@ import java.util.ArrayDeque;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Deque;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -26,8 +28,8 @@ import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.ImportDeclaration;
 import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.PackageDeclaration;
-import com.github.javaparser.ast.type.ClassOrInterfaceType;
-import com.github.javaparser.ast.visitor.VoidVisitor;
+
+import jim.javaparser.ClassOrInterfaceTypeVisitor;
 
 import jim.models.FileEntry;
 import jim.models.FilePosition;
@@ -93,6 +95,29 @@ public class ParseAction implements JimAction<ParseResult> {
 		return null;
 	}
 
+	private boolean isFullyQualifiedClassName(Map<String, List<String>> classes, String name){
+		int index = name.lastIndexOf(".");
+
+		if(index > -1){
+			String nm = name.substring(index + 1, name.length());
+			List<String> choices = classes.get(nm);
+
+			if(choices != null){
+				return choices.contains(name);
+			}
+		}
+
+		return false;
+	}
+
+	private boolean isInPackage(String packageName, String className){
+		if(packageName == null){
+			return false;
+		}
+
+		return className.startsWith(packageName);
+	}
+
 	private void removeUnusedImports(Map<String, FileEntry> imports){
 		Iterator<FileEntry> it = imports.values().iterator();
 
@@ -142,46 +167,49 @@ public class ParseAction implements JimAction<ParseResult> {
 			lastImportLine = 0;
 		}
 
-		Collection<FileTypeEntry> types = new java.util.TreeSet<>((e1, e2) -> {
-			return e1.value.compareTo(e2.value);
-		});
+		Map<String, FileTypeEntry> types = new HashMap<>();
 
 		unit.accept(new ClassOrInterfaceTypeVisitor(), types);
 
-		Iterator<FileTypeEntry> it = types.iterator();
+		Iterator<FileTypeEntry> it = types.values().iterator();
 
 		while(it.hasNext()){
 			FileTypeEntry entry = it.next();
 			FileEntry imprt = getFileEntry(imports, entry.value);
 
 			if(imprt == null){
-				List<String> choices = classes.get(entry.value);
+				if(!isFullyQualifiedClassName(classes, entry.value)){
+					List<String> choices = classes.get(entry.value);
 
-				if(choices != null){
-					int count = choices.size();
+					if(choices != null){
+						int count = choices.size();
 
-					if(count == 1){
-						String choice = choices.get(0);
-						
-						if(!choice.startsWith("java.lang") && !choice.startsWith(packageInfo.value)){
-							FileEntry newImport = new FileEntry();
-							newImport.value = choice;
-							newImport.marked = true;
+						if(count == 1){
+							String choice = choices.get(0);
+							
+							if(!isInPackage("java.lang", choice) && !isInPackage(packageInfo.value, choice)){
+								FileEntry newImport = new FileEntry();
+								newImport.value = choice;
+								newImport.marked = true;
 
-							imports.put(entry.value, newImport);
-						}
-						
-						it.remove();
-					}
-					else{
-						if(!choices.contains(String.format("java.lang.%s", entry.value))){
-							entry.choices.addAll(choices);
+								imports.put(entry.value, newImport);
+							}
+							
+							it.remove();
 						}
 						else{
-							it.remove();	
+							if(!choices.contains(String.format("java.lang.%s", entry.value))){
+								entry.choices.addAll(choices);
+							}
+							else{
+								it.remove();	
+							}
 						}
 					}
 				}	
+				else{
+					it.remove();
+				}
 			}
 			else{
 				imprt.marked = true;
@@ -196,7 +224,7 @@ public class ParseAction implements JimAction<ParseResult> {
 		result.pkg.position.column = packageInfo.position.column;
 
 		result.imports.addAll(imports.values());
-		result.types.addAll(types);
+		result.types.addAll(types.values());
 
 		result.firstImportStatementLine = firstImportLine;
 		result.lastImportStatementLine = lastImportLine;
@@ -236,7 +264,7 @@ public class ParseAction implements JimAction<ParseResult> {
 	public ParseResult parse(InputStream input){
 		ParseResult result = new ParseResult();
 
-		try(Reader reader = new BufferedReader(new InputStreamReader(input)); ){
+		try(Reader reader = new BufferedReader(new InputStreamReader(input))){
 			parse(result, reader);
 		}
 		catch(IOException ex){
@@ -244,6 +272,22 @@ public class ParseAction implements JimAction<ParseResult> {
 		}
 		catch(ParseProblemException ex){
 			result.errorMessages.add(String.format("failed to parse input stream - %s", ex.getMessage()));
+		}
+
+		return result;
+	}
+
+	public ParseResult parseJavaSource(String source){
+		ParseResult result = new ParseResult();
+
+		try(Reader reader = new StringReader(source)){
+			parse(result, reader);
+		}
+		catch(IOException ex){
+			result.errorMessages.add(String.format("unable to read from input string - %s", ex.getMessage()));
+		}
+		catch(ParseProblemException ex){
+			result.errorMessages.add(String.format("failed to parse input string - %s", ex.getMessage()));
 		}
 
 		return result;

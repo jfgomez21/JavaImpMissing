@@ -1,7 +1,10 @@
-jim [-h | --help] <command> [<args]
+jim [-h | --help][-p | --pretty-print][--class-file classes][--choice-file choices] filename
 
--h, --help		Displays this help message
-command
-	generate	Generates the jim data file containing the list of classes
-	parse		Parses a single java source file and returns the list of known imports and unknown types
-	import		Returns the list possible imports based on the type name
+Parses the given java source file and returns all required import statements along with any unknown class types.
+
+-h, --help		Displays this usage message
+-p, --pretty-print	Pretty prints the json output
+--class-file classes	File path to the class list
+--choices-file choices 	File path to the list of recent choices
+
+filename	The java file to parse
