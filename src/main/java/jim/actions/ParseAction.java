@@ -118,6 +118,10 @@ public class ParseAction implements JimAction<ParseResult> {
 		return className.startsWith(packageName);
 	}
 
+	private boolean hasClassName(List<String> choices, String packageName, String className){
+		return choices.contains(String.format("%s.%s", packageName, className));
+	}
+
 	private void removeUnusedImports(Map<String, FileEntry> imports){
 		Iterator<FileEntry> it = imports.values().iterator();
 
@@ -154,7 +158,8 @@ public class ParseAction implements JimAction<ParseResult> {
 			if(lineNum < firstImportLine){
 				firstImportLine = lineNum;
 			}
-			else if(lineNum > lastImportLine){
+			
+			if(lineNum > lastImportLine){
 				lastImportLine = lineNum;
 			}
 		};
@@ -198,11 +203,11 @@ public class ParseAction implements JimAction<ParseResult> {
 							it.remove();
 						}
 						else{
-							if(!choices.contains(String.format("java.lang.%s", entry.value))){
-								entry.choices.addAll(choices);
+							if(hasClassName(choices, "java.lang", entry.value) || hasClassName(choices, packageInfo.value, entry.value)){
+								it.remove();	
 							}
 							else{
-								it.remove();	
+								entry.choices.addAll(choices);
 							}
 						}
 					}

@@ -16,6 +16,9 @@ import jim.AbstractJimTest;
 
 import jim.models.ParseResult;
 
+//TODO - test multiple choices
+//TODO - test unused imports removal
+
 public class TestParseAction extends AbstractJimTest {
 	@Test
 	public void testParseJavaSourceWithObjectCreation() throws IOException {
@@ -300,5 +303,52 @@ public class TestParseAction extends AbstractJimTest {
 		assertEquals(true, result.types.isEmpty());
 
 		assertEquals(true, result.imports.stream().filter(e -> e.value.equals("jim.actions.ParseAction")).findFirst().isPresent());
+	}
+
+	@Test
+	public void testParseJavaSourceWithPackageAlreadyPresent() throws IOException {
+		Map<String, List<String>> classes = Map.<String, List<String>>of(
+			"JsonIgnore", Arrays.asList("com.fasterxml.jackson.annotation.JsonIgnore")
+		);
+		String java = "package def;\n\n import com.fasterxml.jackson.annotation.JsonIgnore;\n\n public class Dummy { @JsonIgnore public void dummy(){ }}";
+
+		ParseResult result = new ParseAction(FileSystems.getDefault(), classes).parseJavaSource(java);
+
+		assertEquals(true, result.errorMessages.isEmpty());
+		assertEquals(1, result.imports.size());
+		assertEquals(true, result.types.isEmpty());
+
+		assertEquals(true, result.imports.stream().filter(e -> e.value.equals("com.fasterxml.jackson.annotation.JsonIgnore")).findFirst().isPresent());
+
+		assertEquals(3, result.firstImportStatementLine);
+		assertEquals(3, result.lastImportStatementLine);
+	}
+
+	@Test
+	public void testParseJavaSourceWithDefaultToJavaLangPackageIfMultpleChoicesExist() throws IOException {
+		Map<String, List<String>> classes = Map.<String, List<String>>of(
+			"String", Arrays.asList("java.lang.String", "abc.String", "def.String")
+		);
+		String java = "public class Dummy { public void dummy(){ String str; }}";
+
+		ParseResult result = new ParseAction(FileSystems.getDefault(), classes).parseJavaSource(java);
+
+		assertEquals(true, result.errorMessages.isEmpty());
+		assertEquals(true, result.imports.isEmpty());
+		assertEquals(true, result.types.isEmpty());
+	}
+
+	@Test
+	public void testParseJavaSourceWithDefaultToCurrentPackageIfMultpleChoicesExist() throws IOException {
+		Map<String, List<String>> classes = Map.<String, List<String>>of(
+			"String", Arrays.asList("abc.String", "def.String", "my.data.String")
+		);
+		String java = "package my.data; public class Dummy { public void dummy(){ String str; }}";
+
+		ParseResult result = new ParseAction(FileSystems.getDefault(), classes).parseJavaSource(java);
+
+		assertEquals(true, result.errorMessages.isEmpty());
+		assertEquals(true, result.imports.isEmpty());
+		assertEquals(true, result.types.isEmpty());
 	}
 }
