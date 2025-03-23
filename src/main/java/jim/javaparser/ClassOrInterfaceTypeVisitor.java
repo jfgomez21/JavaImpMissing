@@ -29,7 +29,6 @@ import jim.models.FileTypeEntry;
 import com.github.javaparser.ast.expr.ClassExpr;
 
 //TODO - rename ParseActionVisitor
-//TODO - Annotations not found - @Test
 public class ClassOrInterfaceTypeVisitor extends VoidVisitorAdapter<Map<String, FileTypeEntry>> {
 	private final Pattern classNamePattern = Pattern.compile("[A-Z]+[A-Za-z0-9_$]*");
 
@@ -135,6 +134,9 @@ public class ClassOrInterfaceTypeVisitor extends VoidVisitorAdapter<Map<String, 
 			if(ex.isFieldAccessExpr()){
 				processFieldAccessExpr(entries, ex.asFieldAccessExpr());
 			}
+			else if(ex.isMethodCallExpr()){
+				visit(ex.asMethodCallExpr(), entries);
+			}
 		}
 
 		Optional<Expression> opt = expression.getScope();
@@ -156,6 +158,9 @@ public class ClassOrInterfaceTypeVisitor extends VoidVisitorAdapter<Map<String, 
 			}
 			else if(exp.isMethodCallExpr()){
 				visit(exp.asMethodCallExpr(), entries);
+			}
+			else if(exp.isObjectCreationExpr()){
+				visit(exp.asObjectCreationExpr(), entries);
 			}
 		}
 	}

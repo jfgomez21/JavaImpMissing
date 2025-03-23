@@ -116,7 +116,7 @@ def insert_import_statements(js):
 def execute():
     #javaImpChoices = load_java_imp_class_file(choices)
     cursor_position = vim.eval("getcurpos()")
-    result = run_java_command([vim.current.buffer.name])
+    result = run_java_command(["--class-file", vim.eval("g:JavaImpClassList"), vim.current.buffer.name])
 
     if result.returncode != 0:
         message = result.stdout

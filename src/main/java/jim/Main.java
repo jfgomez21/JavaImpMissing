@@ -55,45 +55,6 @@ public class Main {
 		return null;
 	}
 
-	private static void parseAction(String[] args) throws IOException {
-		OptionParser parser = new OptionParser("hp");
-		parser.accepts("help");
-		parser.accepts("pretty-print");
-		parser.accepts("class-file").withRequiredArg();
-		parser.accepts("choice-file").withRequiredArg();
-
-		OptionSet options = parser.parse(args);
-		List<?> nonOptions = options.nonOptionArguments();
-
-		if(options.has("h") || options.has("help")){
-			printUsage("usage.txt", 0);
-		}
-
-		if(nonOptions.isEmpty()){
-			printUsage("usage.txt", -1);	
-		}
-
-		String classFileName = "classes.jim";
-		String choiceFileName = "choices.jim";
-
-		if(options.has("class-file")){
-			classFileName = options.valueOf("class-file").toString();
-		}
-
-		if(options.has("choice-file")){
-			choiceFileName = options.valueOf("choice-file").toString(); 
-		}
-
-		FileSystem fileSystem = FileSystems.getDefault();
-		JSON json = createJSON(options.has("p") | options.has("pretty-print"));
-
-		Map<String, List<String>> classes = parseClassFile(fileSystem, classFileName, options.has("class-file"));
-
-		ParseResult result = new ParseAction(fileSystem, classes).parse(nonOptions.get(0).toString());	
-
-		System.out.println(json.asString(result));
-	}
-
 	public static void main(String[] args) throws IOException {
 		OptionParser parser = new OptionParser("hp");
 		parser.accepts("help");

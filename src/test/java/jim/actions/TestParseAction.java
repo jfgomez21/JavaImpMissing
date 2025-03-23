@@ -266,4 +266,39 @@ public class TestParseAction extends AbstractJimTest {
 		assertEquals(true, result.imports.isEmpty());
 		assertEquals(true, result.types.isEmpty());
 	}
+
+	@Test
+	public void testParseJavaSourceWithMethodArguments() throws IOException {
+		Map<String, List<String>> classes = Map.<String, List<String>>of(
+			"System", Arrays.asList("java.lang.System"),
+			"IOUtils", Arrays.asList("org.apache.commons.io.IOUtils"),
+			"StandardCharsets", Arrays.asList("java.nio.charset.StandardCharsets")
+		);
+		String java = "public class Dummy { public void dummy(){ System.out.println(IOUtils.toString(input, StandardCharsets.UTF_8)); }}";
+
+		ParseResult result = new ParseAction(FileSystems.getDefault(), classes).parseJavaSource(java);
+
+		assertEquals(true, result.errorMessages.isEmpty());
+		assertEquals(2, result.imports.size());
+		assertEquals(true, result.types.isEmpty());
+
+		assertEquals(true, result.imports.stream().filter(e -> e.value.equals("org.apache.commons.io.IOUtils")).findFirst().isPresent());
+		assertEquals(true, result.imports.stream().filter(e -> e.value.equals("java.nio.charset.StandardCharsets")).findFirst().isPresent());
+	}
+
+	@Test
+	public void testParseJavaSourceWithObjectCreationAndScope() throws IOException {
+		Map<String, List<String>> classes = Map.<String, List<String>>of(
+			"ParseAction", Arrays.asList("jim.actions.ParseAction")
+		);
+		String java = "public class Dummy { public void dummy(){ new ParseAction(fileSystem, classes).parse(nonOptions.get(0).toString()); }}";
+
+		ParseResult result = new ParseAction(FileSystems.getDefault(), classes).parseJavaSource(java);
+
+		assertEquals(true, result.errorMessages.isEmpty());
+		assertEquals(1, result.imports.size());
+		assertEquals(true, result.types.isEmpty());
+
+		assertEquals(true, result.imports.stream().filter(e -> e.value.equals("jim.actions.ParseAction")).findFirst().isPresent());
+	}
 }
