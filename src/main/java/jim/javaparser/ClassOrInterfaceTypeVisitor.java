@@ -9,6 +9,8 @@ import java.util.regex.Pattern;
 import com.github.javaparser.Range;
 import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.NodeList;
+import com.github.javaparser.ast.body.VariableDeclarator;
+import com.github.javaparser.ast.expr.ClassExpr;
 import com.github.javaparser.ast.expr.Expression;
 import com.github.javaparser.ast.expr.FieldAccessExpr;
 import com.github.javaparser.ast.expr.MarkerAnnotationExpr;
@@ -20,13 +22,13 @@ import com.github.javaparser.ast.expr.NormalAnnotationExpr;
 import com.github.javaparser.ast.expr.ObjectCreationExpr;
 import com.github.javaparser.ast.expr.SimpleName;
 import com.github.javaparser.ast.expr.SingleMemberAnnotationExpr;
+import com.github.javaparser.ast.stmt.TryStmt;
 import com.github.javaparser.ast.type.ClassOrInterfaceType;
 import com.github.javaparser.ast.type.Type;
 import com.github.javaparser.ast.type.TypeParameter;
 import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
 
 import jim.models.FileTypeEntry;
-import com.github.javaparser.ast.expr.ClassExpr;
 
 //TODO - rename ParseActionVisitor
 public class ClassOrInterfaceTypeVisitor extends VoidVisitorAdapter<Map<String, FileTypeEntry>> {
@@ -98,11 +100,6 @@ public class ClassOrInterfaceTypeVisitor extends VoidVisitorAdapter<Map<String, 
 		entries.remove(parameter.getName().asString());
 	}
 
-	@Override
-	public void visit(ObjectCreationExpr expression, Map<String, FileTypeEntry> entries){
-		visit(expression.getType(), entries);
-	}
-
 	private boolean isClassName(SimpleName name){
 		return classNamePattern.matcher(name.asString()).matches();
 	}
@@ -128,40 +125,60 @@ public class ClassOrInterfaceTypeVisitor extends VoidVisitorAdapter<Map<String, 
 		}
 	}
 
+	private void processClassExpr(Map<String, FileTypeEntry> entries, ClassExpr expr){
+		Type type = expr.getType();
+
+		if(type.isClassOrInterfaceType()){
+			visit(type.asClassOrInterfaceType(), entries);
+		}
+	}
+
+	private void processExpression(Expression exp, Map<String, FileTypeEntry> entries){
+		if(exp.isNameExpr()){
+			NameExpr nm = exp.asNameExpr();
+			SimpleName name = nm.getName();
+
+			if(isClassName(name)){
+				ClassOrInterfaceType type = new ClassOrInterfaceType();
+				type.setName(name);
+				type.setRange(nm.getRange().get());
+
+				visit(type, entries);
+			}
+		}
+		else if(exp.isFieldAccessExpr()){
+			processFieldAccessExpr(entries, exp.asFieldAccessExpr());
+		}
+		else if(exp.isMethodCallExpr()){
+			visit(exp.asMethodCallExpr(), entries);
+		}
+		else if(exp.isObjectCreationExpr()){
+			visit(exp.asObjectCreationExpr(), entries);
+		}
+		else if(exp.isClassExpr()){
+			processClassExpr(entries, exp.asClassExpr());
+		}
+	}
+
+	@Override
+	public void visit(ObjectCreationExpr expression, Map<String, FileTypeEntry> entries){
+		visit(expression.getType(), entries);
+
+		for(Expression exp : expression.getArguments()){
+			processExpression(exp, entries);
+		}
+	}	
+
 	@Override
 	public void visit(MethodCallExpr expression, Map<String, FileTypeEntry> entries){
 		for(Expression ex : expression.getArguments()){
-			if(ex.isFieldAccessExpr()){
-				processFieldAccessExpr(entries, ex.asFieldAccessExpr());
-			}
-			else if(ex.isMethodCallExpr()){
-				visit(ex.asMethodCallExpr(), entries);
-			}
+			processExpression(ex, entries);	
 		}
 
 		Optional<Expression> opt = expression.getScope();
 
 		if(opt.isPresent()){
-			Expression exp = opt.get();
-
-			if(exp.isNameExpr()){
-				NameExpr nm = exp.asNameExpr();
-				SimpleName name = nm.getName();
-
-				if(isClassName(name)){
-					ClassOrInterfaceType type = new ClassOrInterfaceType();
-					type.setName(name);
-					type.setRange(nm.getRange().get());
-
-					visit(type, entries);
-				}
-			}
-			else if(exp.isMethodCallExpr()){
-				visit(exp.asMethodCallExpr(), entries);
-			}
-			else if(exp.isObjectCreationExpr()){
-				visit(exp.asObjectCreationExpr(), entries);
-			}
+			processExpression(opt.get(), entries);
 		}
 	}
 
@@ -177,27 +194,12 @@ public class ClassOrInterfaceTypeVisitor extends VoidVisitorAdapter<Map<String, 
 		}
 	}	
 
-	private void processClassExpr(Map<String, FileTypeEntry> entries, ClassExpr expr){
-		Type type = expr.getType();
-
-		if(type.isClassOrInterfaceType()){
-			visit(type.asClassOrInterfaceType(), entries);
-		}
-	}
-
 	@Override
 	public void visit(NormalAnnotationExpr expression, Map<String, FileTypeEntry> entries){
 		processAnnotationExpression(entries, expression.getName(), expression.getRange().get());
 
 		for(MemberValuePair pair : expression.getPairs()){
-			Expression value = pair.getValue();
-
-			if(value.isFieldAccessExpr()){
-				processFieldAccessExpr(entries, value.asFieldAccessExpr());
-			}
-			else if(value.isClassExpr()){
-				processClassExpr(entries, value.asClassExpr());
-			}
+			processExpression(pair.getValue(), entries);
 		}
 	}	
 
@@ -216,4 +218,25 @@ public class ClassOrInterfaceTypeVisitor extends VoidVisitorAdapter<Map<String, 
 	public void visit(MarkerAnnotationExpr expression, Map<String, FileTypeEntry> entries){
 		processAnnotationExpression(entries, expression.getName(), expression.getRange().get());
 	}
+
+	@Override
+	public void visit(TryStmt statement, Map<String, FileTypeEntry> entries){
+		for(Expression ex : statement.getResources()){
+			if(ex.isVariableDeclarationExpr()){
+				for(VariableDeclarator declarator : ex.asVariableDeclarationExpr().getVariables()){
+					Type type = declarator.getType();
+
+					if(type.isClassOrInterfaceType()){
+						visit(type.asClassOrInterfaceType(), entries);
+					}
+
+					Optional<Expression> opt = declarator.getInitializer();
+
+					if(opt.isPresent()){
+						processExpression(opt.get(), entries);	
+					}
+				}
+			}
+		}	
+	} 
 }

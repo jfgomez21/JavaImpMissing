@@ -10,10 +10,7 @@ import java.io.StringReader;
 import java.nio.file.FileSystem;
 import java.nio.file.Files;
 
-import java.util.ArrayDeque;
-import java.util.Collection;
 import java.util.Collections;
-import java.util.Deque;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
@@ -32,7 +29,6 @@ import com.github.javaparser.ast.PackageDeclaration;
 import jim.javaparser.ClassOrInterfaceTypeVisitor;
 
 import jim.models.FileEntry;
-import jim.models.FilePosition;
 import jim.models.FileTypeEntry;
 import jim.models.ParseResult;
 

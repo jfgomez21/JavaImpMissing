@@ -91,7 +91,7 @@ public class TestParseAction extends AbstractJimTest {
 		Map<String, List<String>> classes = Map.of(
 			"Test", Arrays.asList("abc.Test")		
 		);
-		String java = "package dumny; public class Test { public void dummy(){ Test.class.getClassLoader().getResourceAsStream(\"abc\"); }}";
+		String java = "package abc; public class Test { public void dummy(){ Test.class.getClassLoader().getResourceAsStream(\"abc\"); }}";
 
 		ParseResult result = new ParseAction(FileSystems.getDefault(), classes).parseJavaSource(java);
 
@@ -325,6 +325,45 @@ public class TestParseAction extends AbstractJimTest {
 	}
 
 	@Test
+	public void testParseJavaSourceWithObjectCreationMethodArgument() throws IOException {
+		Map<String, List<String>> classes = Map.<String, List<String>>of(
+			"MyObject", Arrays.asList("abc.MyObject")
+		);
+		String java = "public class Dummy { public void dummy(){ obj.someMethod(new MyObject(), 1); }}";
+
+		ParseResult result = new ParseAction(FileSystems.getDefault(), classes).parseJavaSource(java);
+
+		assertEquals(true, result.errorMessages.isEmpty());
+		assertEquals(1, result.imports.size());
+		assertEquals(true, result.types.isEmpty());
+
+		assertEquals(true, result.imports.stream().filter(e -> e.value.equals("abc.MyObject")).findFirst().isPresent());
+	}
+
+	@Test
+	public void testParseJavaSourceWithTryStatement() throws IOException {
+		Map<String, List<String>> classes = Map.<String, List<String>>of(
+			"Reader", Arrays.asList("java.io.Reader"),
+			"BufferedReader", Arrays.asList("java.io.BufferedReader"),
+			"InputStreamReader", Arrays.asList("java.io.InputStreamReader"),
+			"System", Arrays.asList("java.lang.System"),
+			"Exception", Arrays.asList("java.lang.Exception")
+		);
+		String java = "public class Dummy { public void dummy(){ try(Reader reader = new BufferedReader(new InputStreamReader(System.in))){ } catch(Exception ex) { } }}";
+
+		ParseResult result = new ParseAction(FileSystems.getDefault(), classes).parseJavaSource(java);
+
+		assertEquals(true, result.errorMessages.isEmpty());
+		assertEquals(3, result.imports.size());
+		assertEquals(true, result.types.isEmpty());
+
+		assertEquals(true, result.imports.stream().filter(e -> e.value.equals("java.io.Reader")).findFirst().isPresent());
+		assertEquals(true, result.imports.stream().filter(e -> e.value.equals("java.io.BufferedReader")).findFirst().isPresent());
+		assertEquals(true, result.imports.stream().filter(e -> e.value.equals("java.io.InputStreamReader")).findFirst().isPresent());
+	}
+
+
+	@Test
 	public void testParseJavaSourceWithDefaultToJavaLangPackageIfMultpleChoicesExist() throws IOException {
 		Map<String, List<String>> classes = Map.<String, List<String>>of(
 			"String", Arrays.asList("java.lang.String", "abc.String", "def.String")
@@ -350,5 +389,5 @@ public class TestParseAction extends AbstractJimTest {
 		assertEquals(true, result.errorMessages.isEmpty());
 		assertEquals(true, result.imports.isEmpty());
 		assertEquals(true, result.types.isEmpty());
-	}
+	}	
 }
