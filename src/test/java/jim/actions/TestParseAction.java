@@ -341,7 +341,7 @@ public class TestParseAction extends AbstractJimTest {
 	}
 
 	@Test
-	public void testParseJavaSourceWithTryStatement() throws IOException {
+	public void testParseJavaSourceWithTryStatementResources() throws IOException {
 		Map<String, List<String>> classes = Map.<String, List<String>>of(
 			"Reader", Arrays.asList("java.io.Reader"),
 			"BufferedReader", Arrays.asList("java.io.BufferedReader"),
@@ -362,6 +362,47 @@ public class TestParseAction extends AbstractJimTest {
 		assertEquals(true, result.imports.stream().filter(e -> e.value.equals("java.io.InputStreamReader")).findFirst().isPresent());
 	}
 
+	@Test
+	public void testParseJavaSourceWithTryStatement() throws IOException {
+		Map<String, List<String>> classes = Map.<String, List<String>>of(
+			"IOUtils", Arrays.asList("org.apache.commons.io.IOUtils"),
+			"StandardCharsets", Arrays.asList("java.nio.StandardCharsets"),
+			"System", Arrays.asList("java.lang.System"),
+			"Exception", Arrays.asList("java.lang.Exception")
+		);
+		String java = "public class Dummy { public void dummy(){ try{ System.out.println(IOUtils.toString(input, StandardCharsets.UTF_8)); } catch(Exception ex) { } }}";
+			
+
+		ParseResult result = new ParseAction(FileSystems.getDefault(), classes).parseJavaSource(java);
+
+		assertEquals(true, result.errorMessages.isEmpty());
+		assertEquals(2, result.imports.size());
+		assertEquals(true, result.types.isEmpty());
+
+		assertEquals(true, result.imports.stream().filter(e -> e.value.equals("org.apache.commons.io.IOUtils")).findFirst().isPresent());
+		assertEquals(true, result.imports.stream().filter(e -> e.value.equals("java.nio.StandardCharsets")).findFirst().isPresent());
+	}
+
+	@Test
+	public void testParseJavaSourceWithTryStatementAndReturnExpression() throws IOException {
+		Map<String, List<String>> classes = Map.<String, List<String>>of(
+			"IOUtils", Arrays.asList("org.apache.commons.io.IOUtils"),
+			"StandardCharsets", Arrays.asList("java.nio.StandardCharsets"),
+			"System", Arrays.asList("java.lang.System"),
+			"Exception", Arrays.asList("java.lang.Exception")
+		);
+		String java = "public class Dummy { public void dummy(){ try{ return IOUtils.toString(input, StandardCharsets.UTF_8); } catch(Exception ex) { } }}";
+			
+
+		ParseResult result = new ParseAction(FileSystems.getDefault(), classes).parseJavaSource(java);
+
+		assertEquals(true, result.errorMessages.isEmpty());
+		assertEquals(2, result.imports.size());
+		assertEquals(true, result.types.isEmpty());
+
+		assertEquals(true, result.imports.stream().filter(e -> e.value.equals("org.apache.commons.io.IOUtils")).findFirst().isPresent());
+		assertEquals(true, result.imports.stream().filter(e -> e.value.equals("java.nio.StandardCharsets")).findFirst().isPresent());
+	}
 
 	@Test
 	public void testParseJavaSourceWithDefaultToJavaLangPackageIfMultpleChoicesExist() throws IOException {

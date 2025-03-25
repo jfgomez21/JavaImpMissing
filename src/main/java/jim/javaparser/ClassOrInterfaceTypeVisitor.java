@@ -22,6 +22,7 @@ import com.github.javaparser.ast.expr.NormalAnnotationExpr;
 import com.github.javaparser.ast.expr.ObjectCreationExpr;
 import com.github.javaparser.ast.expr.SimpleName;
 import com.github.javaparser.ast.expr.SingleMemberAnnotationExpr;
+import com.github.javaparser.ast.stmt.Statement;
 import com.github.javaparser.ast.stmt.TryStmt;
 import com.github.javaparser.ast.type.ClassOrInterfaceType;
 import com.github.javaparser.ast.type.Type;
@@ -31,6 +32,8 @@ import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
 import jim.models.FileTypeEntry;
 
 //TODO - rename ParseActionVisitor
+//TODO - catch block
+//TODO - finally block
 public class ClassOrInterfaceTypeVisitor extends VoidVisitorAdapter<Map<String, FileTypeEntry>> {
 	private final Pattern classNamePattern = Pattern.compile("[A-Z]+[A-Za-z0-9_$]*");
 
@@ -238,5 +241,18 @@ public class ClassOrInterfaceTypeVisitor extends VoidVisitorAdapter<Map<String, 
 				}
 			}
 		}	
+
+		for(Statement st : statement.getTryBlock().getStatements()){
+			if(st.isExpressionStmt()){
+				processExpression(st.asExpressionStmt().getExpression(), entries);
+			}
+			else if(st.isReturnStmt()){
+				Optional<Expression> opt = st.asReturnStmt().getExpression();
+
+				if(opt.isPresent()){
+					processExpression(opt.get(), entries);
+				}
+			}
+		}
 	} 
 }

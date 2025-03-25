@@ -24,7 +24,7 @@ def load_java_imp_class_file(filepath):
     return results
 
 def run_java_command(args):
-    plugin_path = os.path.dirname(os.path.dirname(sys.argv[0]))
+    plugin_path = vim.eval("s:pluginHome")
     jar_file = "{0}/java/jim-1.0-jar-with-dependencies.jar".format(plugin_path)
 
     arguments = ["java", "-jar", jar_file]
