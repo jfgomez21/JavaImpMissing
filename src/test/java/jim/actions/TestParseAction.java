@@ -147,6 +147,23 @@ public class TestParseAction extends AbstractJimTest {
 	}
 
 	@Test
+	public void testParseJavaSourceWithSingleMemberAnnotationWithClass() throws IOException {
+		Map<String, List<String>> classes = Map.of(
+			"Service", Arrays.asList("org.abc.Service"),	
+			"MyClass", Arrays.asList("com.def.MyClass")
+		);
+		String java = "@Service(MyClass.class) public class Dummy { public void dummy(){ }}";
+
+		ParseResult result = new ParseAction(FileSystems.getDefault(), classes).parseJavaSource(java);
+
+		assertEquals(true, result.errorMessages.isEmpty());
+		assertEquals(true, result.types.isEmpty());
+		assertEquals(2, result.imports.size());
+		assertEquals(true, result.imports.stream().filter(e -> e.value.equals("org.abc.Service")).findFirst().isPresent());
+		assertEquals(true, result.imports.stream().filter(e -> e.value.equals("com.def.MyClass")).findFirst().isPresent());
+	}
+
+	@Test
 	public void testParseJavaSourceWithNormalAnnotations() throws IOException {
 		Map<String, List<String>> classes = Map.of(
 			"Test", Arrays.asList("junit.Test"),	

@@ -209,12 +209,7 @@ public class ClassOrInterfaceTypeVisitor extends VoidVisitorAdapter<Map<String, 
 	@Override
 	public void visit(SingleMemberAnnotationExpr expression, Map<String, FileTypeEntry> entries){
 		processAnnotationExpression(entries, expression.getName(), expression.getRange().get());
-
-		Expression expr = expression.getMemberValue();
-
-		if(expr.isFieldAccessExpr()){
-			processFieldAccessExpr(entries, expr.asFieldAccessExpr());
-		}
+		processExpression(expression.getMemberValue(), entries);
 	}	
 
 	@Override
