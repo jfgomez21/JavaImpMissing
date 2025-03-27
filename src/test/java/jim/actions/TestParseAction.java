@@ -513,5 +513,17 @@ public class TestParseAction extends AbstractJimTest {
 
 		assertEquals(true, result.imports.stream().filter(e -> e.value.equals("abc.MyObject")).findFirst().isPresent());
 	}
+
+	@Test
+	public void testParseJavaSourceWithFieldAccessMethodCall() throws IOException {
+		Map<String, List<String>> classes = Map.<String, List<String>>of();
+		String java = "public class Dummy { public void dummy(){ obj.imports.get(0).value; }}";
+
+		ParseResult result = new ParseAction(FileSystems.getDefault(), classes).parseJavaSource(java);
+
+		assertEquals(true, result.errorMessages.isEmpty());
+		assertEquals(true, result.imports.isEmpty());
+		assertEquals(true, result.types.isEmpty());
+	}
 	
 }

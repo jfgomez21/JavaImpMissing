@@ -123,27 +123,6 @@ public class ClassOrInterfaceTypeVisitor extends VoidVisitorAdapter<Map<String, 
 		return classNamePattern.matcher(name.asString()).matches();
 	}
 
-	private void processFieldAccessExpr(FieldAccessExpr field, Map<String, FileTypeEntry> entries){
-		Expression exp = field;
-
-		while(!exp.isNameExpr()){
-			if(exp.isFieldAccessExpr()){
-				exp = exp.asFieldAccessExpr().getScope();
-			}
-		}
-		
-		NameExpr name = exp.asNameExpr();
-		SimpleName nm = name.getName();
-
-		if(isClassName(nm)){
-			ClassOrInterfaceType type = new ClassOrInterfaceType();
-			type.setName(nm);
-			type.setRange(name.getRange().get());
-
-			visit(type, entries);
-		}
-	}
-
 	private void processClassExpr(ClassExpr expr, Map<String, FileTypeEntry> entries){
 		processType(expr.getType(), entries);
 	}
@@ -177,7 +156,7 @@ public class ClassOrInterfaceTypeVisitor extends VoidVisitorAdapter<Map<String, 
 			}
 		}
 		else if(exp.isFieldAccessExpr()){
-			processFieldAccessExpr(exp.asFieldAccessExpr(), entries);
+			processExpression(exp.asFieldAccessExpr().getScope(), entries);
 		}
 		else if(exp.isMethodCallExpr()){
 			visit(exp.asMethodCallExpr(), entries);

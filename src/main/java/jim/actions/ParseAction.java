@@ -59,7 +59,7 @@ public class ParseAction implements JimAction<ParseResult> {
 			String name = declaration.getName().asString();
 
 			if(declaration.isAsterisk()){
-				name = String.format("%s.*");
+				name = String.format("%s.*", name);
 			}
 
 			FileEntry entry = new FileEntry();
