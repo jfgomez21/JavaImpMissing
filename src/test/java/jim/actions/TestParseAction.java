@@ -18,7 +18,6 @@ import jim.models.ParseResult;
 
 //TODO - test multiple choices
 //TODO - test unused imports removal
-
 public class TestParseAction extends AbstractJimTest {
 	@Test
 	public void testParseJavaSourceWithObjectCreation() throws IOException {
@@ -526,4 +525,20 @@ public class TestParseAction extends AbstractJimTest {
 		assertEquals(true, result.types.isEmpty());
 	}
 	
+	@Test
+	public void testParseJavaSourceWithSingleMemberAnnotationWithArrayInitalizer() throws IOException {
+		Map<String, List<String>> classes = Map.of(
+			"Service", Arrays.asList("org.abc.Service"),	
+			"MyClass", Arrays.asList("com.def.MyClass")
+		);
+		String java = "public class Dummy { @Service({MyClass.class}) public void dummy(){ }}";
+
+		ParseResult result = new ParseAction(FileSystems.getDefault(), classes).parseJavaSource(java);
+
+		assertEquals(true, result.errorMessages.isEmpty());
+		assertEquals(true, result.types.isEmpty());
+		assertEquals(2, result.imports.size());
+		assertEquals(true, result.imports.stream().filter(e -> e.value.equals("org.abc.Service")).findFirst().isPresent());
+		assertEquals(true, result.imports.stream().filter(e -> e.value.equals("com.def.MyClass")).findFirst().isPresent());
+	}
 }

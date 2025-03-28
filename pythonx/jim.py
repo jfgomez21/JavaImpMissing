@@ -69,9 +69,15 @@ def process_results(js):
     for identifier in js["types"]:
         line = identifier["position"]["line"]
         column = identifier["position"]["column"]
+        count = len(identifier["value"])
+
+        text = vim.current.buffer[line - 1][column - 1]
+
+        if text.startswith("@"):
+            count = count + 1
 
         vim.eval("cursor({0}, {1})".format(line, 1))
-        match_id = vim.eval("matchaddpos(\"{0}\", [[{1}, {2}, {3}]])".format("Search", line, column, len(identifier["value"])))
+        match_id = vim.eval("matchaddpos(\"{0}\", [[{1}, {2}, {3}]])".format("Search", line, column, count))
         vim.command("redraw")
 
         if identifier["choices"]:

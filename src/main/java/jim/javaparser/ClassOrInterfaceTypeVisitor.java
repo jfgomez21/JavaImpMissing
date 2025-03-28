@@ -10,6 +10,7 @@ import com.github.javaparser.Range;
 import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.NodeList;
 import com.github.javaparser.ast.body.VariableDeclarator;
+import com.github.javaparser.ast.expr.ArrayInitializerExpr;
 import com.github.javaparser.ast.expr.ClassExpr;
 import com.github.javaparser.ast.expr.Expression;
 import com.github.javaparser.ast.expr.FieldAccessExpr;
@@ -127,6 +128,12 @@ public class ClassOrInterfaceTypeVisitor extends VoidVisitorAdapter<Map<String, 
 		processType(expr.getType(), entries);
 	}
 
+	private void processArrayInitializerExpr(ArrayInitializerExpr expr, Map<String, FileTypeEntry> entries){
+		for(Expression exp : expr.getValues()){
+			processExpression(exp, entries);
+		}
+	}
+
 	private void processExpression(Expression exp, Map<String, FileTypeEntry> entries){
 		if(exp.isVariableDeclarationExpr()){
 			for(VariableDeclarator declarator : exp.asVariableDeclarationExpr().getVariables()){
@@ -166,6 +173,9 @@ public class ClassOrInterfaceTypeVisitor extends VoidVisitorAdapter<Map<String, 
 		}
 		else if(exp.isClassExpr()){
 			processClassExpr(exp.asClassExpr(), entries);
+		}
+		else if(exp.isArrayInitializerExpr()){
+			processArrayInitializerExpr(exp.asArrayInitializerExpr(), entries);	
 		}
 	}
 
