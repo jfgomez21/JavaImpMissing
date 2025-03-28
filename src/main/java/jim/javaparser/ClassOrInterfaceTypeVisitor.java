@@ -9,11 +9,15 @@ import java.util.regex.Pattern;
 import com.github.javaparser.Range;
 import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.NodeList;
+import com.github.javaparser.ast.body.Parameter;
 import com.github.javaparser.ast.body.VariableDeclarator;
+import com.github.javaparser.ast.expr.AnnotationExpr;
 import com.github.javaparser.ast.expr.ArrayInitializerExpr;
+import com.github.javaparser.ast.expr.CastExpr;
 import com.github.javaparser.ast.expr.ClassExpr;
 import com.github.javaparser.ast.expr.Expression;
 import com.github.javaparser.ast.expr.FieldAccessExpr;
+import com.github.javaparser.ast.expr.LambdaExpr;
 import com.github.javaparser.ast.expr.MarkerAnnotationExpr;
 import com.github.javaparser.ast.expr.MemberValuePair;
 import com.github.javaparser.ast.expr.MethodCallExpr;
@@ -25,6 +29,7 @@ import com.github.javaparser.ast.expr.SimpleName;
 import com.github.javaparser.ast.expr.SingleMemberAnnotationExpr;
 import com.github.javaparser.ast.stmt.BlockStmt;
 import com.github.javaparser.ast.stmt.CatchClause;
+import com.github.javaparser.ast.stmt.ForEachStmt;
 import com.github.javaparser.ast.stmt.Statement;
 import com.github.javaparser.ast.stmt.TryStmt;
 import com.github.javaparser.ast.type.ClassOrInterfaceType;
@@ -36,8 +41,6 @@ import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
 import jim.models.FileTypeEntry;
 
 //TODO - rename ParseActionVisitor
-//TODO - catch block
-//TODO - finally block
 public class ClassOrInterfaceTypeVisitor extends VoidVisitorAdapter<Map<String, FileTypeEntry>> {
 	private final Pattern classNamePattern = Pattern.compile("[A-Z]+[A-Za-z0-9_$]*");
 
@@ -177,6 +180,21 @@ public class ClassOrInterfaceTypeVisitor extends VoidVisitorAdapter<Map<String, 
 		else if(exp.isArrayInitializerExpr()){
 			processArrayInitializerExpr(exp.asArrayInitializerExpr(), entries);	
 		}
+		else if(exp.isLambdaExpr()){
+			visit(exp.asLambdaExpr(), entries);
+		}
+		else if(exp.isMarkerAnnotationExpr()){
+			visit(exp.asMarkerAnnotationExpr(), entries);
+		}
+		else if(exp.isNormalAnnotationExpr()){
+			visit(exp.asNormalAnnotationExpr(), entries);
+		}
+		else if(exp.isSingleMemberAnnotationExpr()){
+			visit(exp.asSingleMemberAnnotationExpr(), entries);
+		}
+		else if(exp.isCastExpr()){
+			visit(exp.asCastExpr(), entries);
+		}
 	}
 
 	@Override
@@ -250,6 +268,9 @@ public class ClassOrInterfaceTypeVisitor extends VoidVisitorAdapter<Map<String, 
 		else if(st.isTryStmt()){
 			visit(st.asTryStmt(), entries);
 		}
+		else if(st.isForEachStmt()){
+			visit(st.asForEachStmt(), entries);
+		}
 	}
 
 	@Override
@@ -279,4 +300,36 @@ public class ClassOrInterfaceTypeVisitor extends VoidVisitorAdapter<Map<String, 
 			visit(opt.get(), entries);
 		}
 	} 
+
+	@Override
+	public void visit(ForEachStmt statement, Map<String, FileTypeEntry> entries){
+		processExpression(statement.getVariable(), entries);
+		processExpression(statement.getIterable(), entries);
+		processStatement(statement.getBody(), entries);		
+	}
+
+	@Override
+	public void visit(LambdaExpr expression, Map<String, FileTypeEntry> entries){
+		for(Parameter p : expression.getParameters()){
+			processType(p.getType(), entries);	
+
+			for(AnnotationExpr exp : p.getAnnotations()){
+				processExpression(exp, entries);
+			}
+		}
+
+		Optional<Expression> opt = expression.getExpressionBody();
+
+		if(opt.isPresent()){
+			processExpression(opt.get(), entries);
+		}
+		
+		processStatement(expression.getBody(), entries);	
+	}
+
+	@Override
+	public void visit(CastExpr expression, Map<String, FileTypeEntry> entries){
+		processType(expression.getType(), entries);
+		processExpression(expression.getExpression(), entries);
+	}
 }
