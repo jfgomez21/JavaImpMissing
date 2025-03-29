@@ -17,6 +17,7 @@ import com.github.javaparser.ast.expr.CastExpr;
 import com.github.javaparser.ast.expr.ClassExpr;
 import com.github.javaparser.ast.expr.Expression;
 import com.github.javaparser.ast.expr.FieldAccessExpr;
+import com.github.javaparser.ast.expr.InstanceOfExpr;
 import com.github.javaparser.ast.expr.LambdaExpr;
 import com.github.javaparser.ast.expr.MarkerAnnotationExpr;
 import com.github.javaparser.ast.expr.MemberValuePair;
@@ -29,9 +30,13 @@ import com.github.javaparser.ast.expr.SimpleName;
 import com.github.javaparser.ast.expr.SingleMemberAnnotationExpr;
 import com.github.javaparser.ast.stmt.BlockStmt;
 import com.github.javaparser.ast.stmt.CatchClause;
+import com.github.javaparser.ast.stmt.DoStmt;
 import com.github.javaparser.ast.stmt.ForEachStmt;
+import com.github.javaparser.ast.stmt.ForStmt;
+import com.github.javaparser.ast.stmt.IfStmt;
 import com.github.javaparser.ast.stmt.Statement;
 import com.github.javaparser.ast.stmt.TryStmt;
+import com.github.javaparser.ast.stmt.WhileStmt;
 import com.github.javaparser.ast.type.ClassOrInterfaceType;
 import com.github.javaparser.ast.type.ReferenceType;
 import com.github.javaparser.ast.type.Type;
@@ -43,6 +48,7 @@ import jim.models.FileTypeEntry;
 //TODO - rename ParseActionVisitor
 public class ClassOrInterfaceTypeVisitor extends VoidVisitorAdapter<Map<String, FileTypeEntry>> {
 	private final Pattern classNamePattern = Pattern.compile("[A-Z]+[A-Za-z0-9_$]*");
+	private final Pattern upperCasePattern = Pattern.compile("[A-Z_$]+");
 
 	private void println(Object obj){
 		System.out.println(String.format("%s - %s", obj.getClass(), obj));
@@ -124,7 +130,9 @@ public class ClassOrInterfaceTypeVisitor extends VoidVisitorAdapter<Map<String, 
 	}
 
 	private boolean isClassName(SimpleName name){
-		return classNamePattern.matcher(name.asString()).matches();
+		String nm = name.asString();
+
+		return classNamePattern.matcher(nm).matches() && !upperCasePattern.matcher(nm).matches();
 	}
 
 	private void processClassExpr(ClassExpr expr, Map<String, FileTypeEntry> entries){
@@ -194,6 +202,9 @@ public class ClassOrInterfaceTypeVisitor extends VoidVisitorAdapter<Map<String, 
 		}
 		else if(exp.isCastExpr()){
 			visit(exp.asCastExpr(), entries);
+		}
+		else if(exp.isInstanceOfExpr()){
+			visit(exp.asInstanceOfExpr(), entries);
 		}
 	}
 
@@ -271,6 +282,18 @@ public class ClassOrInterfaceTypeVisitor extends VoidVisitorAdapter<Map<String, 
 		else if(st.isForEachStmt()){
 			visit(st.asForEachStmt(), entries);
 		}
+		else if(st.isForStmt()){
+			visit(st.asForStmt(), entries);
+		}
+		else if(st.isIfStmt()){
+			visit(st.asIfStmt(), entries);
+		}
+		else if(st.isWhileStmt()){
+			visit(st.asWhileStmt(), entries);
+		}
+		else if(st.isDoStmt()){
+			visit(st.asDoStmt(), entries);
+		}
 	}
 
 	@Override
@@ -331,5 +354,53 @@ public class ClassOrInterfaceTypeVisitor extends VoidVisitorAdapter<Map<String, 
 	public void visit(CastExpr expression, Map<String, FileTypeEntry> entries){
 		processType(expression.getType(), entries);
 		processExpression(expression.getExpression(), entries);
+	}
+
+	@Override
+	public void visit(InstanceOfExpr expression, Map<String, FileTypeEntry> entries){
+		processType(expression.getType(), entries);
+	}
+
+	@Override
+	public void visit(IfStmt statement, Map<String, FileTypeEntry> entries){
+		processExpression(statement.getCondition(), entries);
+		processStatement(statement.getThenStmt(), entries);
+
+		Optional<Statement> opt = statement.getElseStmt();
+
+		if(opt.isPresent()){
+			processStatement(opt.get(), entries);
+		}
+	}
+
+	@Override
+	public void visit(WhileStmt statement, Map<String, FileTypeEntry> entries){
+		processExpression(statement.getCondition(), entries);
+		processStatement(statement.getBody(), entries);
+	}
+
+	@Override
+	public void visit(DoStmt statement, Map<String, FileTypeEntry> entries){
+		processExpression(statement.getCondition(), entries);
+		processStatement(statement.getBody(), entries);
+	}
+
+	@Override
+	public void visit(ForStmt statement, Map<String, FileTypeEntry> entries){
+		for(Expression exp : statement.getInitialization()){
+			processExpression(exp, entries);
+		}
+
+		Optional<Expression> opt = statement.getCompare();
+
+		if(opt.isPresent()){
+			processExpression(opt.get(), entries);
+		}
+		
+		for(Expression exp : statement.getUpdate()){
+			processExpression(exp, entries);
+		}
+
+		processStatement(statement.getBody(), entries);
 	}
 }

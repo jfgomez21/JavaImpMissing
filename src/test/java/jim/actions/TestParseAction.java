@@ -561,6 +561,22 @@ public class TestParseAction extends AbstractJimTest {
 	}
 
 	@Test
+	public void testParseJavaSourceWithForStatement() throws IOException {
+		Map<String, List<String>> classes = Map.<String, List<String>>of(
+			"MyObject", Arrays.asList("abc.MyObject")
+		);
+		String java = "public class Dummy { public void dummy(){ for(int i = 0; i < 1; i++){ MyObject obj = null; } }}";
+
+		ParseResult result = new ParseAction(FileSystems.getDefault(), classes).parseJavaSource(java);
+
+		assertEquals(true, result.errorMessages.isEmpty());
+		assertEquals(1, result.imports.size());
+		assertEquals(true, result.types.isEmpty());
+
+		assertEquals(true, result.imports.stream().filter(e -> e.value.equals("abc.MyObject")).findFirst().isPresent());
+	}
+
+	@Test
 	public void testParseJavaSourceWithLambda() throws IOException {
 		Map<String, List<String>> classes = Map.<String, List<String>>of(
 			"MyObject", Arrays.asList("abc.MyObject"),
@@ -596,5 +612,83 @@ public class TestParseAction extends AbstractJimTest {
 
 		assertEquals(true, result.imports.stream().filter(e -> e.value.equals("abc.MyObject")).findFirst().isPresent());
 		assertEquals(true, result.imports.stream().filter(e -> e.value.equals("abc.Child")).findFirst().isPresent());
+	}
+
+	@Test
+	public void testParseJavaSourceWithInstanceOf() throws IOException {
+		Map<String, List<String>> classes = Map.<String, List<String>>of(
+			"MyObject", Arrays.asList("abc.MyObject")
+		);
+		String java = "public class Dummy { public void dummy(){ boolean value = obj instanceof MyObject; }}";
+
+		ParseResult result = new ParseAction(FileSystems.getDefault(), classes).parseJavaSource(java);
+
+		assertEquals(true, result.errorMessages.isEmpty());
+		assertEquals(1, result.imports.size());
+		assertEquals(true, result.types.isEmpty());
+
+		assertEquals(true, result.imports.stream().filter(e -> e.value.equals("abc.MyObject")).findFirst().isPresent());
+	}
+
+	@Test
+	public void testParseJavaSourceWithInstanceOfAndIfStatement() throws IOException {
+		Map<String, List<String>> classes = Map.<String, List<String>>of(
+			"MyObject", Arrays.asList("abc.MyObject")
+		);
+		String java = "public class Dummy { public void dummy(){ if(obj instanceof MyObject){ } }}";
+
+		ParseResult result = new ParseAction(FileSystems.getDefault(), classes).parseJavaSource(java);
+
+		assertEquals(true, result.errorMessages.isEmpty());
+		assertEquals(1, result.imports.size());
+		assertEquals(true, result.types.isEmpty());
+
+		assertEquals(true, result.imports.stream().filter(e -> e.value.equals("abc.MyObject")).findFirst().isPresent());
+	}
+
+	@Test
+	public void testParseJavaSourceWithWhileStatement() throws IOException {
+		Map<String, List<String>> classes = Map.<String, List<String>>of(
+			"MyObject", Arrays.asList("abc.MyObject")
+		);
+		String java = "public class Dummy { public void dummy(){ while(true){ MyObject obj = null; } }}";
+
+		ParseResult result = new ParseAction(FileSystems.getDefault(), classes).parseJavaSource(java);
+
+		assertEquals(true, result.errorMessages.isEmpty());
+		assertEquals(1, result.imports.size());
+		assertEquals(true, result.types.isEmpty());
+
+		assertEquals(true, result.imports.stream().filter(e -> e.value.equals("abc.MyObject")).findFirst().isPresent());
+	}
+
+	@Test
+	public void testParseJavaSourceWithDoStatement() throws IOException {
+		Map<String, List<String>> classes = Map.<String, List<String>>of(
+			"MyObject", Arrays.asList("abc.MyObject")
+		);
+		String java = "public class Dummy { public void dummy(){ do { MyObject obj = null; } while(true); }}";
+
+		ParseResult result = new ParseAction(FileSystems.getDefault(), classes).parseJavaSource(java);
+
+		assertEquals(true, result.errorMessages.isEmpty());
+		assertEquals(1, result.imports.size());
+		assertEquals(true, result.types.isEmpty());
+
+		assertEquals(true, result.imports.stream().filter(e -> e.value.equals("abc.MyObject")).findFirst().isPresent());
+	}
+
+	@Test
+	public void testParseJavaSourceWithConstantValue() throws IOException {
+		Map<String, List<String>> classes = Map.<String, List<String>>of(
+			"MyObject", Arrays.asList("abc.MyObject")
+		);
+		String java = "public class Dummy { private final static int MY_VAR = 0;  public void dummy(){ obj.setValue(MY_VAR); }}";
+
+		ParseResult result = new ParseAction(FileSystems.getDefault(), classes).parseJavaSource(java);
+
+		assertEquals(true, result.errorMessages.isEmpty());
+		assertEquals(true, result.imports.isEmpty());
+		assertEquals(true, result.types.isEmpty());
 	}
 }
