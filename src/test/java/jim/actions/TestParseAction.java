@@ -691,4 +691,17 @@ public class TestParseAction extends AbstractJimTest {
 		assertEquals(true, result.imports.isEmpty());
 		assertEquals(true, result.types.isEmpty());
 	}
+
+	@Test
+	public void testParseJavaSourceWithParseError() throws IOException {
+		Map<String, List<String>> classes = Map.<String, List<String>>of();
+		String java = "public class Dummy { public void dummy(){} ";
+
+		ParseResult result = new ParseAction(FileSystems.getDefault(), classes).parseJavaSource(java);
+
+		assertEquals(1, result.errorMessages.size());
+		assertEquals("Parse error - line 1 column 42", result.errorMessages.get(0));
+		assertEquals(true, result.imports.isEmpty());
+		assertEquals(true, result.types.isEmpty());
+	}
 }

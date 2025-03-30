@@ -19,8 +19,10 @@ import java.util.Map;
 import java.util.Optional;
 
 import com.github.javaparser.ParseProblemException;
+import com.github.javaparser.Problem;
 import com.github.javaparser.Range;
 import com.github.javaparser.StaticJavaParser;
+import com.github.javaparser.TokenRange;
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.ImportDeclaration;
 import com.github.javaparser.ast.Node;
@@ -243,6 +245,27 @@ public class ParseAction implements JimAction<ParseResult> {
 		return result;
 	}
 
+	private void addParseProblem(ParseResult result, ParseProblemException ex){
+		List<Problem> problems = ex.getProblems();
+		String message = "Parse error";
+
+		if(!problems.isEmpty()){
+			Optional<TokenRange> opt = problems.get(0).getLocation();
+
+			if(opt.isPresent()){
+				Optional<Range> optr = opt.get().toRange();
+
+				if(optr.isPresent()){
+					Range range = optr.get();
+
+					message = String.format("Parse error - line %d column %d", range.begin.line, range.begin.column);
+				}
+			}
+		}
+
+		result.errorMessages.add(message);
+	}
+
 	//TODO - log exceptions
 	public ParseResult parse(String filename){
 		ParseResult result = new ParseResult();
@@ -254,8 +277,7 @@ public class ParseAction implements JimAction<ParseResult> {
 			result.errorMessages.add(String.format("unable to read file - %s", filename));
 		}
 		catch(ParseProblemException ex){
-			result.errorMessages.add(String.format("failed to parse file - %s", filename));
-			result.errorMessages.add(ex.getMessage());
+			addParseProblem(result, ex);
 		}
 
 		return result;
@@ -272,7 +294,7 @@ public class ParseAction implements JimAction<ParseResult> {
 			result.errorMessages.add(String.format("unable to read from input stream - %s", ex.getMessage()));
 		}
 		catch(ParseProblemException ex){
-			result.errorMessages.add(String.format("failed to parse input stream - %s", ex.getMessage()));
+			addParseProblem(result, ex);
 		}
 
 		return result;
@@ -288,7 +310,7 @@ public class ParseAction implements JimAction<ParseResult> {
 			result.errorMessages.add(String.format("unable to read from input string - %s", ex.getMessage()));
 		}
 		catch(ParseProblemException ex){
-			result.errorMessages.add(String.format("failed to parse input string - %s", ex.getMessage()));
+			addParseProblem(result, ex);
 		}
 
 		return result;
