@@ -33,6 +33,7 @@ import jim.javaparser.ClassOrInterfaceTypeVisitor;
 import jim.models.FileEntry;
 import jim.models.FileTypeEntry;
 import jim.models.ParseResult;
+import jim.models.FileImportEntry;
 
 public class ParseAction implements JimAction<ParseResult> {
 	private FileSystem fileSystem;
@@ -54,8 +55,8 @@ public class ParseAction implements JimAction<ParseResult> {
 		}
 	}
 
-	private Map<String, FileEntry> getImportStatements(CompilationUnit unit){
-		Map<String, FileEntry> imports = new LinkedHashMap<>();
+	private Map<String, FileImportEntry> getImportStatements(CompilationUnit unit){
+		Map<String, FileImportEntry> imports = new LinkedHashMap<>();
 
 		for(ImportDeclaration declaration : unit.getImports()){
 			String name = declaration.getName().asString();
@@ -64,8 +65,9 @@ public class ParseAction implements JimAction<ParseResult> {
 				name = String.format("%s.*", name);
 			}
 
-			FileEntry entry = new FileEntry();
+			FileImportEntry entry = new FileImportEntry();
 			entry.value = name;
+			entry.isStatic = declaration.isStatic();
 
 			setRange(entry, declaration);
 
@@ -75,7 +77,7 @@ public class ParseAction implements JimAction<ParseResult> {
 		return imports;
 	}
 
-	private FileEntry getFileEntry(Map<String, FileEntry> imports, String name){
+	private FileImportEntry getFileImportEntry(Map<String, FileImportEntry> imports, String name){
 		if(imports.containsKey(name)){
 			return imports.get(name);
 		}
@@ -120,13 +122,13 @@ public class ParseAction implements JimAction<ParseResult> {
 		return choices.contains(String.format("%s.%s", packageName, className));
 	}
 
-	private void removeUnusedImports(Map<String, FileEntry> imports){
-		Iterator<FileEntry> it = imports.values().iterator();
+	private void removeUnusedImports(Map<String, FileImportEntry> imports){
+		Iterator<FileImportEntry> it = imports.values().iterator();
 
 		while(it.hasNext()){
-			FileEntry entry = it.next();
+			FileImportEntry entry = it.next();
 
-			if(!entry.marked){
+			if(!entry.isUsed && !entry.isStatic){
 				it.remove();
 			}
 		}
@@ -146,11 +148,11 @@ public class ParseAction implements JimAction<ParseResult> {
 			setRange(packageInfo, declaration);	
 		}
 
-		Map<String, FileEntry> imports = getImportStatements(unit);	
+		Map<String, FileImportEntry> imports = getImportStatements(unit);	
 		int firstImportLine = Integer.MAX_VALUE;
 		int lastImportLine = Integer.MIN_VALUE;
 
-		for(FileEntry entry : imports.values()){
+		for(FileImportEntry entry : imports.values()){
 			int lineNum = entry.position.line;
 
 			if(lineNum < firstImportLine){
@@ -178,7 +180,7 @@ public class ParseAction implements JimAction<ParseResult> {
 
 		while(it.hasNext()){
 			FileTypeEntry entry = it.next();
-			FileEntry imprt = getFileEntry(imports, entry.value);
+			FileImportEntry imprt = getFileImportEntry(imports, entry.value);
 
 			if(imprt == null){
 				if(!isFullyQualifiedClassName(classes, entry.value)){
@@ -191,9 +193,9 @@ public class ParseAction implements JimAction<ParseResult> {
 							String choice = choices.get(0);
 							
 							if(!isInPackage("java.lang", choice) && !isInPackage(packageInfo.value, choice)){
-								FileEntry newImport = new FileEntry();
+								FileImportEntry newImport = new FileImportEntry();
 								newImport.value = choice;
-								newImport.marked = true;
+								newImport.isUsed = true;
 
 								imports.put(entry.value, newImport);
 							}
@@ -215,7 +217,7 @@ public class ParseAction implements JimAction<ParseResult> {
 				}
 			}
 			else{
-				imprt.marked = true;
+				imprt.isUsed = true;
 				it.remove();
 			}
 		}

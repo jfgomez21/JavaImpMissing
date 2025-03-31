@@ -454,6 +454,24 @@ public class TestParseAction extends AbstractJimTest {
 	}
 
 	@Test
+	public void testParseJavaSourceWithCatchClauseUnion() throws IOException {
+		Map<String, List<String>> classes = Map.<String, List<String>>of(
+			"IOException", Arrays.asList("java.io.IOException"),
+			"ParseException", Arrays.asList("java.text.ParseException")
+		);
+		String java = "public class Dummy { public void dummy(){ try{  } catch(IOException | ParseException  ex) { } }}";
+
+		ParseResult result = new ParseAction(FileSystems.getDefault(), classes).parseJavaSource(java);
+
+		assertEquals(true, result.errorMessages.isEmpty());
+		assertEquals(2, result.imports.size());
+		assertEquals(true, result.types.isEmpty());
+
+		assertEquals(true, result.imports.stream().filter(e -> e.value.equals("java.io.IOException")).findFirst().isPresent());
+		assertEquals(true, result.imports.stream().filter(e -> e.value.equals("java.text.ParseException")).findFirst().isPresent());
+	}
+
+	@Test
 	public void testParseJavaSourceWithFinallyBlock() throws IOException {
 		Map<String, List<String>> classes = Map.<String, List<String>>of(
 			"MyObject", Arrays.asList("abc.MyObject")
@@ -577,7 +595,7 @@ public class TestParseAction extends AbstractJimTest {
 	}
 
 	@Test
-	public void testParseJavaSourceWithLambda() throws IOException {
+	public void testParseJavaSourceWithLambdaExpressionBody() throws IOException {
 		Map<String, List<String>> classes = Map.<String, List<String>>of(
 			"MyObject", Arrays.asList("abc.MyObject"),
 			"String", Arrays.asList("abc.String"),
@@ -594,6 +612,22 @@ public class TestParseAction extends AbstractJimTest {
 		assertEquals(true, result.imports.stream().filter(e -> e.value.equals("abc.MyObject")).findFirst().isPresent());
 		assertEquals(true, result.imports.stream().filter(e -> e.value.equals("abc.String")).findFirst().isPresent());
 		assertEquals(true, result.imports.stream().filter(e -> e.value.equals("java.io.File")).findFirst().isPresent());
+	}
+
+	@Test
+	public void testParseJavaSourceWithLambdaExpression() throws IOException {
+		Map<String, List<String>> classes = Map.<String, List<String>>of(
+			"MyObject", Arrays.asList("abc.MyObject")
+		);
+		String java = "public class Dummy { public void dummy(){ values.forEach(obj -> obj.value = new MyObject()); }}";
+
+		ParseResult result = new ParseAction(FileSystems.getDefault(), classes).parseJavaSource(java);
+
+		assertEquals(true, result.errorMessages.isEmpty());
+		assertEquals(1, result.imports.size());
+		assertEquals(true, result.types.isEmpty());
+
+		assertEquals(true, result.imports.stream().filter(e -> e.value.equals("abc.MyObject")).findFirst().isPresent());
 	}
 
 	@Test
@@ -703,5 +737,57 @@ public class TestParseAction extends AbstractJimTest {
 		assertEquals("Parse error - line 1 column 42", result.errorMessages.get(0));
 		assertEquals(true, result.imports.isEmpty());
 		assertEquals(true, result.types.isEmpty());
+	}
+
+	@Test
+	public void testParseJavaSourceWithWildcardImportStatement() throws IOException {
+		Map<String, List<String>> classes = Map.of(
+			"ArrayList", Arrays.asList("java.util.ArrayList"),
+			"List", Arrays.asList("java.util.List"),
+			"String", Arrays.asList("java.lang.String")
+		);
+		String java = "import java.util.*; public class Test { public static void main(String[] args){ List l = new ArrayList(); }}";
+
+		ParseResult result = new ParseAction(FileSystems.getDefault(), classes).parseJavaSource(java);
+
+		assertEquals(true, result.errorMessages.isEmpty());
+		assertEquals(2, result.imports.size());
+		assertEquals(true, result.types.isEmpty());
+
+		assertEquals(true, result.imports.stream().filter(e -> e.value.equals("java.util.List")).findFirst().isPresent());
+		assertEquals(true, result.imports.stream().filter(e -> e.value.equals("java.util.ArrayList")).findFirst().isPresent());
+	}
+
+	@Test
+	public void testParseJavaSourceWithStaticImportStatement() throws IOException {
+		Map<String, List<String>> classes = Map.of(
+			"String", Arrays.asList("java.lang.String")
+		);
+		String java = "import static org.junit.Assert.*; public class Test { public static void main(String[] args){ assertEquals(true, true); }}";
+
+		ParseResult result = new ParseAction(FileSystems.getDefault(), classes).parseJavaSource(java);
+
+		assertEquals(true, result.errorMessages.isEmpty());
+		assertEquals(1, result.imports.size());
+		assertEquals(true, result.types.isEmpty());
+
+		assertEquals(true, result.imports.stream().filter(e -> e.value.equals("org.junit.Assert.*")).findFirst().isPresent());
+		assertEquals(true, result.imports.stream().filter(e -> e.isStatic == true).findFirst().isPresent());
+	}
+
+	@Test
+	public void testParseJavaSourceWithElseStatement() throws IOException {
+		Map<String, List<String>> classes = Map.<String, List<String>>of(
+			"MyObject", Arrays.asList("abc.MyObject")
+		);
+		String java = "public class Dummy { public void dummy(){ if(false){ } else { MyObject obj = null; } }}";
+
+		ParseResult result = new ParseAction(FileSystems.getDefault(), classes).parseJavaSource(java);
+
+		assertEquals(true, result.errorMessages.isEmpty());
+		assertEquals(1, result.imports.size());
+		assertEquals(true, result.types.isEmpty());
+
+		assertEquals(true, result.imports.stream().filter(e -> e.value.equals("abc.MyObject")).findFirst().isPresent());
 	}
 }

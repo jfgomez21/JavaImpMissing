@@ -13,6 +13,7 @@ import com.github.javaparser.ast.body.Parameter;
 import com.github.javaparser.ast.body.VariableDeclarator;
 import com.github.javaparser.ast.expr.AnnotationExpr;
 import com.github.javaparser.ast.expr.ArrayInitializerExpr;
+import com.github.javaparser.ast.expr.AssignExpr;
 import com.github.javaparser.ast.expr.CastExpr;
 import com.github.javaparser.ast.expr.ClassExpr;
 import com.github.javaparser.ast.expr.Expression;
@@ -205,6 +206,9 @@ public class ClassOrInterfaceTypeVisitor extends VoidVisitorAdapter<Map<String, 
 		}
 		else if(exp.isInstanceOfExpr()){
 			visit(exp.asInstanceOfExpr(), entries);
+		}
+		else if(exp.isAssignExpr()){
+			visit(exp.asAssignExpr(), entries);
 		}
 	}
 
@@ -402,5 +406,11 @@ public class ClassOrInterfaceTypeVisitor extends VoidVisitorAdapter<Map<String, 
 		}
 
 		processStatement(statement.getBody(), entries);
+	}
+
+	@Override
+	public void visit(AssignExpr expression, Map<String, FileTypeEntry> entries){
+		processExpression(expression.getTarget(), entries);
+		processExpression(expression.getValue(), entries);
 	}
 }
