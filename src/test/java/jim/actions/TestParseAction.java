@@ -1,7 +1,5 @@
 package jim.actions;
 
-import static org.junit.Assert.*;
-
 import java.io.IOException;
 
 import java.nio.file.FileSystems;
@@ -15,6 +13,8 @@ import org.junit.Test;
 import jim.AbstractJimTest;
 
 import jim.models.ParseResult;
+
+import static org.junit.Assert.*;
 
 //TODO - test multiple choices
 //TODO - test unused imports removal

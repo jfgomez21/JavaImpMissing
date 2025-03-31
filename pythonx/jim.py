@@ -115,7 +115,12 @@ def insert_import_statements(js):
         start_line = 1
 
     for index, import_statement in enumerate(js["imports"]):
-        vim.current.buffer.append("import {0};".format(import_statement["value"]), start_line + index)
+        if "static" in import_statement and  import_statement["static"]:
+            line = "import static {0};".format(import_statement["value"])
+        else:
+            line = "import {0};".format(import_statement["value"])
+
+        vim.current.buffer.append(line, start_line + index)
 
     import_count = len(js["imports"])
 
@@ -147,7 +152,7 @@ def execute():
     insert_import_statements(js)
 
     if js["imports"]:
-	    Sorter()
+        Sorter()
 
     if js["types"]:
         vim.eval("cursor({0}, {1})".format(cursor_position[1], cursor_position[2]))
