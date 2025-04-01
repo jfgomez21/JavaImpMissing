@@ -66,6 +66,24 @@ public class ClassOrInterfaceTypeVisitor extends VoidVisitorAdapter<Map<String, 
 		}
 	}
 
+	private int comparePositions(ClassOrInterfaceType parent, FileTypeEntry entry){
+		Optional<Range> opt = parent.getRange();
+
+		if(opt.isPresent()){
+			Range range = opt.get();
+
+			int value = range.begin.line - entry.position.line;
+
+			if(value == 0){
+				return range.begin.column - entry.position.column;	
+			}
+
+			return value;
+		}
+
+		return -1;
+	}
+
 	private void addType(ClassOrInterfaceType type, Map<String, FileTypeEntry> entries){
 		Deque<String> deque = new ArrayDeque<>();
 		deque.add(type.getName().asString());
@@ -90,12 +108,22 @@ public class ClassOrInterfaceTypeVisitor extends VoidVisitorAdapter<Map<String, 
 
 		str.setLength(Math.max(0, str.length() - 1));
 
-		FileTypeEntry entry = new FileTypeEntry();
-		entry.value = str.toString();
+		String name = str.toString();
+		FileTypeEntry entry = entries.get(name);
 
-		setRange(entry, parent);
+		if(entry == null){
+			entry = new FileTypeEntry();
+			entry.value = name;
 
-		entries.put(entry.value, entry);
+			setRange(entry, parent);
+
+			entries.put(name, entry);
+		}
+		else{
+			if(comparePositions(parent, entry) < 0){
+				setRange(entry, parent);
+			}
+		}
 	}
 
 	private void processType(Type type, Map<String, FileTypeEntry> entries){

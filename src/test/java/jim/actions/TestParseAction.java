@@ -1,7 +1,10 @@
 package jim.actions;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 
+import java.nio.charset.StandardCharsets;
 import java.nio.file.FileSystems;
 
 import java.util.Arrays;
@@ -12,6 +15,7 @@ import org.junit.Test;
 
 import jim.AbstractJimTest;
 
+import jim.models.FileTypeEntry;
 import jim.models.ParseResult;
 
 import static org.junit.Assert.*;
@@ -789,5 +793,31 @@ public class TestParseAction extends AbstractJimTest {
 		assertEquals(true, result.types.isEmpty());
 
 		assertEquals(true, result.imports.stream().filter(e -> e.value.equals("abc.MyObject")).findFirst().isPresent());
+	}
+
+	@Test
+	public void testParseJavaSourceWithMultipleOccurences() throws IOException {
+		Map<String, List<String>> classes = Map.<String, List<String>>of();
+		String java = "public class Dummy {\n" + 
+			"@Test public void a(){ }\n" +
+			"@Test public void b(){ }\n" +
+			"@Test public void c(){ }\n" + 
+			"}";
+
+		try(InputStream input = new ByteArrayInputStream(java.getBytes(StandardCharsets.UTF_8))){ 
+			ParseResult result = new ParseAction(FileSystems.getDefault(), classes).parse(input);
+
+			assertEquals(true, result.errorMessages.isEmpty());
+			assertEquals(true, result.imports.isEmpty());
+			assertEquals(1, result.types.size());
+
+			assertEquals(true, result.types.stream().filter(e -> e.value.equals("Test")).findFirst().isPresent());
+
+			FileTypeEntry entry = result.types.get(0);
+
+			assertEquals("Test", entry.value);
+			assertEquals(2, entry.position.line);
+			assertEquals(1, entry.position.column);
+		}
 	}
 }
