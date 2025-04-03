@@ -43,16 +43,16 @@ public class Main {
 		return builder.build();
 	}
 
-	private static Map<String, List<String>> parseClassFile(FileSystem fileSystem, String filename, boolean required){
+	private static Map<String, List<String>> parseClassFile(ClassListDeserializer deserializer, String filename, boolean required){
 		try{
-			return new ClassListDeserializer(fileSystem).deserialize(filename, required);
+			return deserializer.deserialize(filename, required);
 		}
 		catch(IOException ex){
 			System.err.println(ex.getMessage());
 			System.exit(-1);
 		}
 
-		return null;
+		return Map.<String, List<String>>of();
 	}
 
 	public static void main(String[] args) throws IOException {
@@ -85,11 +85,13 @@ public class Main {
 		}
 
 		FileSystem fileSystem = FileSystems.getDefault();
+		ClassListDeserializer deserializer = new ClassListDeserializer(fileSystem);
 		JSON json = createJSON(options.has("p") | options.has("pretty-print"));
 
-		Map<String, List<String>> classes = parseClassFile(fileSystem, classFileName, options.has("class-file"));
+		Map<String, List<String>> classes = parseClassFile(deserializer, classFileName, options.has("class-file"));
+		Map<String, List<String>> choices = parseClassFile(deserializer, choiceFileName, options.has("choice-file"));
 
-		ParseResult result = new ParseAction(fileSystem, classes).parse(nonOptions.get(0).toString());	
+		ParseResult result = new ParseAction(fileSystem, classes, choices).parse(nonOptions.get(0).toString());	
 
 		System.out.println(json.asString(result));
 	}

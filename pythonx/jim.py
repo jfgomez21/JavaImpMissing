@@ -1,8 +1,6 @@
 import json
 import os
-import re
 import subprocess
-import sys
 import vim
 
 from jis import Sorter
@@ -19,16 +17,34 @@ def load_java_imp_class_file(filepath):
 
                 if len(values) > 1:
                     className = values[0]
-                    results[className] = values[1]
-
+                    
+                    if not className in results:
+                        results[className] = []
+                        
+                        for package in values[1:]:
+                            results[className].append(package)
+    
     return results
 
-def run_java_command(args):
+def run_java_command():
     plugin_path = vim.eval("s:pluginHome")
     jar_file = "{0}/java/jim-1.0-jar-with-dependencies.jar".format(plugin_path)
 
     arguments = ["java", "-jar", jar_file]
-    arguments.extend(args)
+
+    filename = vim.eval("g:JavaImpClassList")
+
+    if os.path.isfile(filename):
+        arguments.append("--class-file")
+        arguments.append(filename)
+
+    filename = "{0}/choices.txt".format(vim.eval("g:JavaImpDataDir"))
+
+    if os.path.isfile(filename):
+        arguments.append("--choice-file")
+        arguments.append(filename)
+
+    arguments.append(vim.current.buffer.name)
 
     return subprocess.run(arguments, capture_output=True, text=True)
 
@@ -40,7 +56,6 @@ def show_error_message(msg):
     except vim.error:
         pass
 
-#TODO - save choices
 def select_choice(className, choices):
     prompt = "Multiple matches exist for {0}. Select one -".format(className)
 
@@ -65,7 +80,36 @@ def select_choice(className, choices):
 
     return selection
 
+def update_choices(choices, name, selection):
+    values = None
+
+    if name not in choices:
+        values = []
+
+        choices[name] = values
+    else:
+        values = choices[name]
+    
+    if selection in values:
+        values.remove(selection)
+    
+    values.insert(0, selection)
+
+def save_java_imp_class_file(filename, classes):
+    with open(filename, "w") as file:
+        for name, values in classes.items():
+            line = name
+
+            for value in values:
+                line = "{0} {1}".format(line, value)
+
+            file.write(line)
+            file.write("\n")
+    
 def process_results(js):
+    filename = "{0}/choices.txt".format(vim.eval("g:JavaImpDataDir"))
+    choices  = load_java_imp_class_file(filename)
+
     for identifier in js["types"]:
         line = identifier["position"]["line"]
         column = identifier["position"]["column"]
@@ -85,13 +129,16 @@ def process_results(js):
 
             if selection:
                 js["imports"].append({"value" : selection}) 
-                #TODO - add selection to choices
+
+                update_choices(choices, identifier["value"], selection) 
         else:
             vim.command("echohl MoreMsg")
             vim.eval("input(\"{0}\")".format("No match found for {0}.".format(identifier["value"])))
             vim.command("echohl None")
 
         vim.eval("matchdelete({0})".format(match_id))
+
+    save_java_imp_class_file(filename, choices)
 
 def insert_import_statements(js):
     start_line = js["firstImportStatementLine"]
@@ -128,9 +175,9 @@ def insert_import_statements(js):
         vim.current.buffer.append("", start_line + import_count)
 
 def execute():
-    #javaImpChoices = load_java_imp_class_file(choices)
     cursor_position = vim.eval("getcurpos()")
-    result = run_java_command(["--class-file", vim.eval("g:JavaImpClassList"), vim.current.buffer.name])
+
+    result = run_java_command()
 
     if result.returncode != 0:
         message = result.stdout

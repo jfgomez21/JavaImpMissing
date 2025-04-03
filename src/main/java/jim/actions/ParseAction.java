@@ -38,10 +38,16 @@ import jim.models.FileImportEntry;
 public class ParseAction implements JimAction<ParseResult> {
 	private FileSystem fileSystem;
 	private Map<String, List<String>> classes;
+	private Map<String, List<String>> choices;
 
-	public ParseAction(FileSystem fileSystem, Map<String, List<String>> classes){
+	public ParseAction(FileSystem fileSystem, Map<String, List<String>> classes, Map<String, List<String>> choices){
 		this.fileSystem = fileSystem;	
 		this.classes = classes;
+		this.choices = choices;
+	}
+
+	public ParseAction(FileSystem fileSystem, Map<String, List<String>> classes){
+		this(fileSystem, classes, new HashMap<String, List<String>>());	
 	}
 
 	private void setRange(FileEntry entry, Node node){
@@ -122,6 +128,60 @@ public class ParseAction implements JimAction<ParseResult> {
 		return choices.contains(String.format("%s.%s", packageName, className));
 	}
 
+	private void addFileImportEntry(Map<String, FileImportEntry> dest, String name){
+		FileImportEntry entry = new FileImportEntry();
+		entry.value = name;
+		entry.isUsed = true;
+
+		dest.put(entry.value, entry);
+	}
+
+	private List<String> get(Map<String, List<String>> values, String name){
+		List<String> result = values.get(name);
+
+		return result == null ? Collections.<String>emptyList() : result;
+	}
+
+	private List<String> getChoices(String name){
+		List<String> options = get(classes, name);
+		List<String> previous = get(choices, name);
+
+		if(!previous.isEmpty()){
+			String value = previous.get(0);
+
+			if(options.contains(value)){
+				options = previous.subList(0, 1);
+			}
+		}
+
+		return options;
+	}
+
+	private boolean processFileTypeEntry(FileEntry packageInfo, Map<String, FileImportEntry> imports, FileTypeEntry entry){
+		List<String> choices = getChoices(entry.value);
+		boolean result = false;
+
+		if(choices.size() == 1){
+			String choice = choices.get(0);
+
+			if(!isInPackage("java.lang", choice) && !isInPackage(packageInfo.value, choice)){
+				addFileImportEntry(imports, choice);
+			}
+
+			result = true;
+		}
+		else{
+			if(!hasClassName(choices, "java.lang", entry.value) && !hasClassName(choices, packageInfo.value, entry.value)){
+				entry.choices.addAll(choices);
+			}
+			else{
+				result = true;	
+			}
+		}
+
+		return result;
+	} 
+
 	private void removeUnusedImports(Map<String, FileImportEntry> imports){
 		Iterator<FileImportEntry> it = imports.values().iterator();
 
@@ -184,32 +244,10 @@ public class ParseAction implements JimAction<ParseResult> {
 
 			if(imprt == null){
 				if(!isFullyQualifiedClassName(classes, entry.value)){
-					List<String> choices = classes.get(entry.value);
+					boolean resolved = processFileTypeEntry(packageInfo, imports, entry);
 
-					if(choices != null){
-						int count = choices.size();
-
-						if(count == 1){
-							String choice = choices.get(0);
-							
-							if(!isInPackage("java.lang", choice) && !isInPackage(packageInfo.value, choice)){
-								FileImportEntry newImport = new FileImportEntry();
-								newImport.value = choice;
-								newImport.isUsed = true;
-
-								imports.put(entry.value, newImport);
-							}
-							
-							it.remove();
-						}
-						else{
-							if(hasClassName(choices, "java.lang", entry.value) || hasClassName(choices, packageInfo.value, entry.value)){
-								it.remove();	
-							}
-							else{
-								entry.choices.addAll(choices);
-							}
-						}
+					if(resolved){
+						it.remove();
 					}
 				}	
 				else{

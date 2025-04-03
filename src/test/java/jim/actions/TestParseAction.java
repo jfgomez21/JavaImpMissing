@@ -820,4 +820,48 @@ public class TestParseAction extends AbstractJimTest {
 			assertEquals(1, entry.position.column);
 		}
 	}
+
+	@Test
+	public void testParseJavaSourceWithPreviousChoice() throws IOException {
+		Map<String, List<String>> classes = Map.<String, List<String>>of(
+			"List", Arrays.asList("java.awt.List", "java.util.List", "abc.util.List")
+		);
+		Map<String, List<String>> choices = Map.<String, List<String>>of(
+			"List", Arrays.asList("abc.util.List")
+		);
+		String java = "public class Dummy { public void dummy(){ List l = null; }}";
+
+		ParseResult result = new ParseAction(FileSystems.getDefault(), classes, choices).parseJavaSource(java);
+
+		assertEquals(true, result.errorMessages.isEmpty());
+		assertEquals(1, result.imports.size());
+		assertEquals(true, result.types.isEmpty());
+
+		assertEquals(true, result.imports.stream().filter(e -> e.value.equals("abc.util.List")).findFirst().isPresent());
+	}
+
+	@Test
+	public void testParseJavaSourceWithPreviousChoiceThatNoLongerExists() throws IOException {
+		Map<String, List<String>> classes = Map.<String, List<String>>of(
+			"List", Arrays.asList("java.awt.List", "java.util.List")
+		);
+		Map<String, List<String>> choices = Map.<String, List<String>>of(
+			"List", Arrays.asList("abc.util.List")
+		);
+		String java = "public class Dummy { public void dummy(){ List l = null; }}";
+
+		ParseResult result = new ParseAction(FileSystems.getDefault(), classes, choices).parseJavaSource(java);
+
+		assertEquals(true, result.errorMessages.isEmpty());
+		assertEquals(true, result.imports.isEmpty());
+		assertEquals(1, result.types.size());
+
+		FileTypeEntry entry = result.types.get(0);
+
+		assertEquals("List", entry.value);
+		assertEquals(2, entry.choices.size());
+
+		assertEquals(true, entry.choices.stream().filter(e -> e.equals("java.awt.List")).findFirst().isPresent());
+		assertEquals(true, entry.choices.stream().filter(e -> e.equals("java.util.List")).findFirst().isPresent());
+	}
 }
