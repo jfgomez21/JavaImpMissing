@@ -429,7 +429,6 @@ public class TestParseAction extends AbstractJimTest {
 			"Exception", Arrays.asList("java.lang.Exception")
 		);
 		String java = "public class Dummy { public void dummy(){ try{ return IOUtils.toString(input, StandardCharsets.UTF_8); } catch(Exception ex) { } }}";
-			
 
 		ParseResult result = new ParseAction(FileSystems.getDefault(), classes).parseJavaSource(java);
 
@@ -863,5 +862,26 @@ public class TestParseAction extends AbstractJimTest {
 
 		assertEquals(true, entry.choices.stream().filter(e -> e.equals("java.awt.List")).findFirst().isPresent());
 		assertEquals(true, entry.choices.stream().filter(e -> e.equals("java.util.List")).findFirst().isPresent());
+	}
+
+	@Test
+	public void testParseJavaSourceWithLocalClassDeclarationStatement() throws IOException {
+		Map<String, List<String>> classes = Map.<String, List<String>>of(
+			"MyObject", Arrays.asList("abc.MyObject"),
+			"InputStream", Arrays.asList("java.io.InputStream"),
+			"ByteArrayInputStream", Arrays.asList("java.io.ByteArrayInputStream"),
+			"Override", Arrays.asList("java.lang.Override")
+		);
+		String java = "public class Dummy { public MyObject dummy(){ return new MyObject(){ @Override public InputStream m(){ return new ByteArrayInputStream(); }};}}";
+
+		ParseResult result = new ParseAction(FileSystems.getDefault(), classes).parseJavaSource(java);
+
+		assertEquals(true, result.errorMessages.isEmpty());
+		assertEquals(3, result.imports.size());
+		assertEquals(true, result.types.isEmpty());
+
+		assertEquals(true, result.imports.stream().filter(e -> e.value.equals("abc.MyObject")).findFirst().isPresent());
+		assertEquals(true, result.imports.stream().filter(e -> e.value.equals("java.io.InputStream")).findFirst().isPresent());
+		assertEquals(true, result.imports.stream().filter(e -> e.value.equals("java.io.ByteArrayInputStream")).findFirst().isPresent());
 	}
 }

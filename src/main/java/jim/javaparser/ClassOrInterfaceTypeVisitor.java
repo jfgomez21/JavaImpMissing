@@ -9,37 +9,19 @@ import java.util.regex.Pattern;
 import com.github.javaparser.Range;
 import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.NodeList;
-import com.github.javaparser.ast.body.Parameter;
-import com.github.javaparser.ast.body.VariableDeclarator;
-import com.github.javaparser.ast.expr.AnnotationExpr;
 import com.github.javaparser.ast.expr.ArrayInitializerExpr;
-import com.github.javaparser.ast.expr.AssignExpr;
-import com.github.javaparser.ast.expr.CastExpr;
 import com.github.javaparser.ast.expr.ClassExpr;
 import com.github.javaparser.ast.expr.Expression;
 import com.github.javaparser.ast.expr.FieldAccessExpr;
-import com.github.javaparser.ast.expr.InstanceOfExpr;
-import com.github.javaparser.ast.expr.LambdaExpr;
 import com.github.javaparser.ast.expr.MarkerAnnotationExpr;
 import com.github.javaparser.ast.expr.MemberValuePair;
 import com.github.javaparser.ast.expr.MethodCallExpr;
 import com.github.javaparser.ast.expr.Name;
 import com.github.javaparser.ast.expr.NameExpr;
 import com.github.javaparser.ast.expr.NormalAnnotationExpr;
-import com.github.javaparser.ast.expr.ObjectCreationExpr;
 import com.github.javaparser.ast.expr.SimpleName;
 import com.github.javaparser.ast.expr.SingleMemberAnnotationExpr;
-import com.github.javaparser.ast.stmt.BlockStmt;
-import com.github.javaparser.ast.stmt.CatchClause;
-import com.github.javaparser.ast.stmt.DoStmt;
-import com.github.javaparser.ast.stmt.ForEachStmt;
-import com.github.javaparser.ast.stmt.ForStmt;
-import com.github.javaparser.ast.stmt.IfStmt;
-import com.github.javaparser.ast.stmt.Statement;
-import com.github.javaparser.ast.stmt.TryStmt;
-import com.github.javaparser.ast.stmt.WhileStmt;
 import com.github.javaparser.ast.type.ClassOrInterfaceType;
-import com.github.javaparser.ast.type.ReferenceType;
 import com.github.javaparser.ast.type.Type;
 import com.github.javaparser.ast.type.TypeParameter;
 import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
@@ -127,12 +109,7 @@ public class ClassOrInterfaceTypeVisitor extends VoidVisitorAdapter<Map<String, 
 	}
 
 	private void processType(Type type, Map<String, FileTypeEntry> entries){
-		if(type.isUnionType()){
-			for(ReferenceType t : type.asUnionType().getElements()){
-				processType(t, entries);
-			}
-		}
-		else if(type.isClassOrInterfaceType()){
+		if(type.isClassOrInterfaceType()){
 			visit(type.asClassOrInterfaceType(), entries);
 		}
 	}
@@ -175,22 +152,7 @@ public class ClassOrInterfaceTypeVisitor extends VoidVisitorAdapter<Map<String, 
 	}
 
 	private void processExpression(Expression exp, Map<String, FileTypeEntry> entries){
-		if(exp.isVariableDeclarationExpr()){
-			for(VariableDeclarator declarator : exp.asVariableDeclarationExpr().getVariables()){
-				Type type = declarator.getType();
-
-				if(type.isClassOrInterfaceType()){
-					visit(type.asClassOrInterfaceType(), entries);
-				}
-
-				Optional<Expression> opt = declarator.getInitializer();
-
-				if(opt.isPresent()){
-					processExpression(opt.get(), entries);	
-				}
-			}
-		}
-		else if(exp.isNameExpr()){
+		if(exp.isNameExpr()){
 			NameExpr nm = exp.asNameExpr();
 			SimpleName name = nm.getName();
 
@@ -203,7 +165,7 @@ public class ClassOrInterfaceTypeVisitor extends VoidVisitorAdapter<Map<String, 
 			}
 		}
 		else if(exp.isFieldAccessExpr()){
-			processExpression(exp.asFieldAccessExpr().getScope(), entries);
+			visit(exp.asFieldAccessExpr(), entries);
 		}
 		else if(exp.isMethodCallExpr()){
 			visit(exp.asMethodCallExpr(), entries);
@@ -216,49 +178,6 @@ public class ClassOrInterfaceTypeVisitor extends VoidVisitorAdapter<Map<String, 
 		}
 		else if(exp.isArrayInitializerExpr()){
 			processArrayInitializerExpr(exp.asArrayInitializerExpr(), entries);	
-		}
-		else if(exp.isLambdaExpr()){
-			visit(exp.asLambdaExpr(), entries);
-		}
-		else if(exp.isMarkerAnnotationExpr()){
-			visit(exp.asMarkerAnnotationExpr(), entries);
-		}
-		else if(exp.isNormalAnnotationExpr()){
-			visit(exp.asNormalAnnotationExpr(), entries);
-		}
-		else if(exp.isSingleMemberAnnotationExpr()){
-			visit(exp.asSingleMemberAnnotationExpr(), entries);
-		}
-		else if(exp.isCastExpr()){
-			visit(exp.asCastExpr(), entries);
-		}
-		else if(exp.isInstanceOfExpr()){
-			visit(exp.asInstanceOfExpr(), entries);
-		}
-		else if(exp.isAssignExpr()){
-			visit(exp.asAssignExpr(), entries);
-		}
-	}
-
-	@Override
-	public void visit(ObjectCreationExpr expression, Map<String, FileTypeEntry> entries){
-		visit(expression.getType(), entries);
-
-		for(Expression exp : expression.getArguments()){
-			processExpression(exp, entries);
-		}
-	}	
-
-	@Override
-	public void visit(MethodCallExpr expression, Map<String, FileTypeEntry> entries){
-		for(Expression ex : expression.getArguments()){
-			processExpression(ex, entries);	
-		}
-
-		Optional<Expression> opt = expression.getScope();
-
-		if(opt.isPresent()){
-			processExpression(opt.get(), entries);
 		}
 	}
 
@@ -294,151 +213,19 @@ public class ClassOrInterfaceTypeVisitor extends VoidVisitorAdapter<Map<String, 
 		processAnnotationExpression(entries, expression.getName(), expression.getRange().get());
 	}
 
-	private void processStatement(Statement st, Map<String, FileTypeEntry> entries){
-		if(st.isExpressionStmt()){
-			processExpression(st.asExpressionStmt().getExpression(), entries);
-		}
-		else if(st.isBlockStmt()){
-			visit(st.asBlockStmt(), entries);
-		}
-		else if(st.isReturnStmt()){
-			Optional<Expression> opt = st.asReturnStmt().getExpression();
-
-			if(opt.isPresent()){
-				processExpression(opt.get(), entries);
-			}
-		}
-		else if(st.isTryStmt()){
-			visit(st.asTryStmt(), entries);
-		}
-		else if(st.isForEachStmt()){
-			visit(st.asForEachStmt(), entries);
-		}
-		else if(st.isForStmt()){
-			visit(st.asForStmt(), entries);
-		}
-		else if(st.isIfStmt()){
-			visit(st.asIfStmt(), entries);
-		}
-		else if(st.isWhileStmt()){
-			visit(st.asWhileStmt(), entries);
-		}
-		else if(st.isDoStmt()){
-			visit(st.asDoStmt(), entries);
-		}
+	@Override
+	public void visit(FieldAccessExpr expression, Map<String, FileTypeEntry> entries){
+		processExpression(expression.getScope(), entries);
 	}
-
+	
 	@Override
-	public void visit(BlockStmt block, Map<String, FileTypeEntry> entries){
-		for(Statement st : block.getStatements()){
-			processStatement(st, entries);
-		}
-	}
+	public void visit(MethodCallExpr expression, Map<String, FileTypeEntry> entries){
+		super.visit(expression, entries);
 
-	@Override
-	public void visit(TryStmt statement, Map<String, FileTypeEntry> entries){
-		for(Expression ex : statement.getResources()){
-			processExpression(ex, entries);	
-		}	
-
-		for(Statement st : statement.getTryBlock().getStatements()){
-			processStatement(st, entries);	
-		}
-
-		for(CatchClause clause : statement.getCatchClauses()){
-			processType(clause.getParameter().getType(), entries);
-		}
-
-		Optional<BlockStmt> opt = statement.getFinallyBlock();
-
-		if(opt.isPresent()){
-			visit(opt.get(), entries);
-		}
-	} 
-
-	@Override
-	public void visit(ForEachStmt statement, Map<String, FileTypeEntry> entries){
-		processExpression(statement.getVariable(), entries);
-		processExpression(statement.getIterable(), entries);
-		processStatement(statement.getBody(), entries);		
-	}
-
-	@Override
-	public void visit(LambdaExpr expression, Map<String, FileTypeEntry> entries){
-		for(Parameter p : expression.getParameters()){
-			processType(p.getType(), entries);	
-
-			for(AnnotationExpr exp : p.getAnnotations()){
-				processExpression(exp, entries);
-			}
-		}
-
-		Optional<Expression> opt = expression.getExpressionBody();
+		Optional<Expression> opt = expression.getScope();
 
 		if(opt.isPresent()){
 			processExpression(opt.get(), entries);
 		}
-		
-		processStatement(expression.getBody(), entries);	
-	}
-
-	@Override
-	public void visit(CastExpr expression, Map<String, FileTypeEntry> entries){
-		processType(expression.getType(), entries);
-		processExpression(expression.getExpression(), entries);
-	}
-
-	@Override
-	public void visit(InstanceOfExpr expression, Map<String, FileTypeEntry> entries){
-		processType(expression.getType(), entries);
-	}
-
-	@Override
-	public void visit(IfStmt statement, Map<String, FileTypeEntry> entries){
-		processExpression(statement.getCondition(), entries);
-		processStatement(statement.getThenStmt(), entries);
-
-		Optional<Statement> opt = statement.getElseStmt();
-
-		if(opt.isPresent()){
-			processStatement(opt.get(), entries);
-		}
-	}
-
-	@Override
-	public void visit(WhileStmt statement, Map<String, FileTypeEntry> entries){
-		processExpression(statement.getCondition(), entries);
-		processStatement(statement.getBody(), entries);
-	}
-
-	@Override
-	public void visit(DoStmt statement, Map<String, FileTypeEntry> entries){
-		processExpression(statement.getCondition(), entries);
-		processStatement(statement.getBody(), entries);
-	}
-
-	@Override
-	public void visit(ForStmt statement, Map<String, FileTypeEntry> entries){
-		for(Expression exp : statement.getInitialization()){
-			processExpression(exp, entries);
-		}
-
-		Optional<Expression> opt = statement.getCompare();
-
-		if(opt.isPresent()){
-			processExpression(opt.get(), entries);
-		}
-		
-		for(Expression exp : statement.getUpdate()){
-			processExpression(exp, entries);
-		}
-
-		processStatement(statement.getBody(), entries);
-	}
-
-	@Override
-	public void visit(AssignExpr expression, Map<String, FileTypeEntry> entries){
-		processExpression(expression.getTarget(), entries);
-		processExpression(expression.getValue(), entries);
-	}
+	}	
 }
