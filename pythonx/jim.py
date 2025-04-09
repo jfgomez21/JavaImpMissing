@@ -7,7 +7,7 @@ from jis import Sorter
 
 #TODO - add logging
 
-def load_java_imp_class_file(filepath):
+def jim_load_java_imp_class_file(filepath):
     results = {}
     
     if os.path.isfile(filepath):
@@ -26,11 +26,18 @@ def load_java_imp_class_file(filepath):
     
     return results
 
-def run_java_command():
+def jim_run_java_command():
+    opts = vim.eval("g:JimJavaOpts")
     plugin_path = vim.eval("s:pluginHome")
     jar_file = "{0}/java/jim-1.0-jar-with-dependencies.jar".format(plugin_path)
 
-    arguments = ["java", "-jar", jar_file]
+    arguments = ["java"]
+
+    if opts:
+        arguments.extend(opts.split(" "))
+
+    arguments.append("-jar")
+    arguments.append(jar_file)
 
     filename = vim.eval("g:JavaImpClassList")
 
@@ -48,7 +55,7 @@ def run_java_command():
 
     return subprocess.run(arguments, capture_output=True, text=True)
 
-def show_error_message(msg):
+def jim_show_error_message(msg):
     try:
         vim.command("echohl ErrorMsg")
         vim.command("echo \"{0}\"".format(msg))
@@ -56,7 +63,7 @@ def show_error_message(msg):
     except vim.error:
         pass
 
-def select_choice(className, choices):
+def jim_select_choice(className, choices):
     prompt = "Multiple matches exist for {0}. Select one -".format(className)
 
     for index, choice in enumerate(choices):
@@ -80,7 +87,7 @@ def select_choice(className, choices):
 
     return selection
 
-def update_choices(choices, name, selection):
+def jim_update_choices(choices, name, selection):
     values = None
 
     if name not in choices:
@@ -95,7 +102,7 @@ def update_choices(choices, name, selection):
     
     values.insert(0, selection)
 
-def save_java_imp_class_file(filename, classes):
+def jim_save_java_imp_class_file(filename, classes):
     with open(filename, "w") as file:
         for name, values in classes.items():
             line = name
@@ -106,9 +113,9 @@ def save_java_imp_class_file(filename, classes):
             file.write(line)
             file.write("\n")
     
-def process_results(js):
+def jim_process_results(js):
     filename = "{0}/choices.txt".format(vim.eval("g:JavaImpDataDir"))
-    choices  = load_java_imp_class_file(filename)
+    choices  = jim_load_java_imp_class_file(filename)
 
     for identifier in js["types"]:
         line = identifier["position"]["line"]
@@ -125,12 +132,12 @@ def process_results(js):
         vim.command("redraw")
 
         if identifier["choices"]:
-            selection = select_choice(identifier["value"], identifier["choices"])
+            selection = jim_select_choice(identifier["value"], identifier["choices"])
 
             if selection:
                 js["imports"].append({"value" : selection}) 
 
-                update_choices(choices, identifier["value"], selection) 
+                jim_update_choices(choices, identifier["value"], selection) 
         else:
             vim.command("echohl MoreMsg")
             vim.eval("input(\"{0}\")".format("No match found for {0}.".format(identifier["value"])))
@@ -138,9 +145,9 @@ def process_results(js):
 
         vim.eval("matchdelete({0})".format(match_id))
 
-    save_java_imp_class_file(filename, choices)
+    jim_save_java_imp_class_file(filename, choices)
 
-def insert_import_statements(js):
+def jim_insert_import_statements(js):
     start_line = js["firstImportStatementLine"]
     end_line = js["lastImportStatementLine"]
 
@@ -174,10 +181,10 @@ def insert_import_statements(js):
     if import_count > 0:
         vim.current.buffer.append("", start_line + import_count)
 
-def execute():
+def jim_import_missing():
     cursor_position = vim.eval("getcurpos()")
 
-    result = run_java_command()
+    result = jim_run_java_command()
 
     if result.returncode != 0:
         message = result.stdout
@@ -185,18 +192,18 @@ def execute():
         if message == "":
             message = result.stderr
         
-        show_error_message(message)
+        jim_show_error_message(message)
 
         return
 
     js = json.loads(result.stdout) 
 
     if js["errorMessages"]:
-        show_error_message("\n".join(js["errorMessages"]))
+        jim_show_error_message("\n".join(js["errorMessages"]))
         return
 
-    process_results(js)
-    insert_import_statements(js)
+    jim_process_results(js)
+    jim_insert_import_statements(js)
 
     if js["imports"]:
         Sorter()
@@ -205,6 +212,3 @@ def execute():
         vim.eval("cursor({0}, {1})".format(cursor_position[1], cursor_position[2]))
 
     vim.command("redraw")
-
-if __name__ == '__main__':
-    execute()

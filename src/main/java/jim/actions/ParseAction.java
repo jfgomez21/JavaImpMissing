@@ -31,9 +31,9 @@ import com.github.javaparser.ast.PackageDeclaration;
 import jim.javaparser.ClassOrInterfaceTypeVisitor;
 
 import jim.models.FileEntry;
+import jim.models.FileImportEntry;
 import jim.models.FileTypeEntry;
 import jim.models.ParseResult;
-import jim.models.FileImportEntry;
 
 public class ParseAction implements JimAction<ParseResult> {
 	private FileSystem fileSystem;
