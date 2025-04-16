@@ -21,8 +21,8 @@ def jim_load_java_imp_class_file(filepath):
                     if not className in results:
                         results[className] = []
                         
-                        for package in values[1:]:
-                            results[className].append(package)
+                    for package in values[1:]:
+                        results[className].append(package)
     
     return results
 
@@ -115,6 +115,7 @@ def jim_save_java_imp_class_file(filename, classes):
     
 def jim_process_results(js):
     filename = "{0}/choices.txt".format(vim.eval("g:JavaImpDataDir"))
+    
     choices  = jim_load_java_imp_class_file(filename)
 
     for identifier in js["types"]:
@@ -166,7 +167,7 @@ def jim_insert_import_statements(js):
 
         start_line = start_line + 1
     else:
-        start_line = 1
+        start_line = 0
 
     for index, import_statement in enumerate(js["imports"]):
         if "static" in import_statement and  import_statement["static"]:
