@@ -114,20 +114,11 @@ public class ClassOrInterfaceTypeVisitor extends VoidVisitorAdapter<Map<String, 
 		}
 	}
 
-	private void addTypeArguments(ClassOrInterfaceType type, Map<String, FileTypeEntry> entries){
-		Optional<NodeList<Type>> opt = type.getTypeArguments();
-
-		if(opt.isPresent()){
-			for(Type t : opt.get()){
-				processType(t, entries);
-			}
-		}
-	}
-
 	@Override
 	public void visit(ClassOrInterfaceType type, Map<String, FileTypeEntry> entries){
 		addType(type, entries);	
-		addTypeArguments(type, entries);
+
+		type.getTypeArguments().ifPresent(nodes -> nodes.forEach(node -> node.accept(this, entries)));
 	}
 	
 	@Override

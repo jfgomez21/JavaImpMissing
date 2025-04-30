@@ -884,4 +884,22 @@ public class TestParseAction extends AbstractJimTest {
 		assertEquals(true, result.imports.stream().filter(e -> e.value.equals("java.io.InputStream")).findFirst().isPresent());
 		assertEquals(true, result.imports.stream().filter(e -> e.value.equals("java.io.ByteArrayInputStream")).findFirst().isPresent());
 	}
+
+	@Test
+	public void testParseJavaSourceWithUpperBoundWildcard() throws IOException {
+		Map<String, List<String>> classes = Map.<String, List<String>>of(
+			"MyObject", Arrays.asList("abc.MyObject"),
+			"List", Arrays.asList("java.util.List")
+		);
+		String java = "public class Dummy { public void dummy(List<? extends MyObject> list){ }}";
+
+		ParseResult result = new ParseAction(FileSystems.getDefault(), classes).parseJavaSource(java);
+
+		assertEquals(true, result.errorMessages.isEmpty());
+		assertEquals(2, result.imports.size());
+		assertEquals(true, result.types.isEmpty());
+
+		assertEquals(true, result.imports.stream().filter(e -> e.value.equals("abc.MyObject")).findFirst().isPresent());
+		assertEquals(true, result.imports.stream().filter(e -> e.value.equals("java.util.List")).findFirst().isPresent());
+	}
 }
