@@ -10,8 +10,10 @@ import java.io.StringReader;
 import java.nio.file.FileSystem;
 import java.nio.file.Files;
 
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -233,8 +235,9 @@ public class ParseAction implements JimAction<ParseResult> {
 		}
 
 		Map<String, FileTypeEntry> types = new HashMap<>();
+		Collection<String> declaredClasses = new HashSet<>();
 
-		unit.accept(new ClassOrInterfaceTypeVisitor(), types);
+		unit.accept(new ClassOrInterfaceTypeVisitor(classes, declaredClasses), types);
 
 		Iterator<FileTypeEntry> it = types.values().iterator();
 
@@ -243,7 +246,7 @@ public class ParseAction implements JimAction<ParseResult> {
 			FileImportEntry imprt = getFileImportEntry(imports, entry.value);
 
 			if(imprt == null){
-				if(!isFullyQualifiedClassName(classes, entry.value)){
+				if(!isFullyQualifiedClassName(classes, entry.value) && !declaredClasses.contains(entry.value)){
 					boolean resolved = processFileTypeEntry(packageInfo, imports, entry);
 
 					if(resolved){

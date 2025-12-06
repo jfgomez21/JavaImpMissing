@@ -902,4 +902,61 @@ public class TestParseAction extends AbstractJimTest {
 		assertEquals(true, result.imports.stream().filter(e -> e.value.equals("abc.MyObject")).findFirst().isPresent());
 		assertEquals(true, result.imports.stream().filter(e -> e.value.equals("java.util.List")).findFirst().isPresent());
 	}
+
+	@Test
+	public void testParseJavaSourceWithUUID() throws IOException {
+		Map<String, List<String>> classes = Map.<String, List<String>>of(
+			"UUID", Arrays.asList("java.util.UUID")
+		);
+		String java = "public class Dummy { public void dummy(){ UUID.randomUUID.toString(); }}";
+
+		ParseResult result = new ParseAction(FileSystems.getDefault(), classes).parseJavaSource(java);
+
+		assertEquals(true, result.errorMessages.isEmpty());
+		assertEquals(1, result.imports.size());
+		assertEquals(true, result.types.isEmpty());
+
+		assertEquals(true, result.imports.stream().filter(e -> e.value.equals("java.util.UUID")).findFirst().isPresent());
+	}
+
+	@Test
+	public void testParseJavaSourceWithUppercaseConstants() throws IOException {
+		Map<String, List<String>> classes = Map.<String, List<String>>of(
+			"String", Arrays.asList("java.lang.String")
+		);
+		String java = "public class Dummy { public static final String VALUE = \"ABC\"; public void dummy(){ String str = VALUE.toString(); }}";
+
+		ParseResult result = new ParseAction(FileSystems.getDefault(), classes).parseJavaSource(java);
+
+		assertEquals(true, result.errorMessages.isEmpty());
+		assertEquals(true, result.imports.isEmpty());
+		assertEquals(true, result.types.isEmpty());
+	}
+
+	@Test
+	public void testParseJavaSourceWithInnerClasses() throws IOException {
+		Map<String, List<String>> classes = Map.<String, List<String>>of();
+		String java = "public class Dummy { public void dummy(){ Inner i = new Inner(); } private class Inner {} }";
+
+		ParseResult result = new ParseAction(FileSystems.getDefault(), classes).parseJavaSource(java);
+
+		assertEquals(true, result.errorMessages.isEmpty());
+		assertEquals(true, result.imports.isEmpty());
+		assertEquals(true, result.types.isEmpty());
+	}
+
+	@Test
+	public void testParseJavaSourceWithStaticFieldMember() throws IOException {
+		Map<String, List<String>> classes = Map.<String, List<String>>of(
+			"Service", Arrays.asList("abc.Service"),
+			"String", Arrays.asList("java.lang.String")
+		);
+		String java = "@Service(Dummy.BEAN_NAME) public class Dummy { public static final String BEAN_NAME = \"ABC\"; }";
+
+		ParseResult result = new ParseAction(FileSystems.getDefault(), classes).parseJavaSource(java);
+
+		assertEquals(true, result.errorMessages.isEmpty());
+		assertEquals(1, result.imports.size());
+		assertEquals(true, result.types.isEmpty());
+	}
 }

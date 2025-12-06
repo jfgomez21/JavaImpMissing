@@ -1,14 +1,16 @@
 package jim.javaparser;
 
 import java.util.ArrayDeque;
+import java.util.Collection;
 import java.util.Deque;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.regex.Pattern;
 
 import com.github.javaparser.Range;
 import com.github.javaparser.ast.Node;
-import com.github.javaparser.ast.NodeList;
+import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
 import com.github.javaparser.ast.expr.ArrayInitializerExpr;
 import com.github.javaparser.ast.expr.ClassExpr;
 import com.github.javaparser.ast.expr.Expression;
@@ -32,6 +34,14 @@ import jim.models.FileTypeEntry;
 public class ClassOrInterfaceTypeVisitor extends VoidVisitorAdapter<Map<String, FileTypeEntry>> {
 	private final Pattern classNamePattern = Pattern.compile("[A-Z]+[A-Za-z0-9_$]*");
 	private final Pattern upperCasePattern = Pattern.compile("[A-Z_$]+");
+
+	private Map<String, List<String>> classes;
+	private Collection<String> declaredClasses;
+
+	public ClassOrInterfaceTypeVisitor(Map<String, List<String>> classes, Collection<String> declaredClasses){
+		this.classes = classes;
+		this.declaredClasses = declaredClasses;
+	}
 
 	private void println(Object obj){
 		System.out.println(String.format("%s - %s", obj.getClass(), obj));
@@ -91,6 +101,7 @@ public class ClassOrInterfaceTypeVisitor extends VoidVisitorAdapter<Map<String, 
 		str.setLength(Math.max(0, str.length() - 1));
 
 		String name = str.toString();
+
 		FileTypeEntry entry = entries.get(name);
 
 		if(entry == null){
@@ -129,7 +140,16 @@ public class ClassOrInterfaceTypeVisitor extends VoidVisitorAdapter<Map<String, 
 	private boolean isClassName(SimpleName name){
 		String nm = name.asString();
 
-		return classNamePattern.matcher(nm).matches() && !upperCasePattern.matcher(nm).matches();
+		if(classNamePattern.matcher(nm).matches()){
+			if(upperCasePattern.matcher(nm).matches()){
+				//if nm is not a known class, then lets discard it
+				return classes.containsKey(nm);
+			}
+
+			return true;
+		}
+
+		return false;
 	}
 
 	private void processClassExpr(ClassExpr expr, Map<String, FileTypeEntry> entries){
@@ -219,4 +239,11 @@ public class ClassOrInterfaceTypeVisitor extends VoidVisitorAdapter<Map<String, 
 			processExpression(opt.get(), entries);
 		}
 	}	
+
+	@Override
+	public void visit(ClassOrInterfaceDeclaration declaration, Map<String, FileTypeEntry> entries){
+		super.visit(declaration, entries);
+
+		declaredClasses.add(declaration.getName().asString());
+	}
 }
