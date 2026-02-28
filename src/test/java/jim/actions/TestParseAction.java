@@ -959,4 +959,19 @@ public class TestParseAction extends AbstractJimTest {
 		assertEquals(1, result.imports.size());
 		assertEquals(true, result.types.isEmpty());
 	}
+
+	@Test
+	public void testParseJavaSourceWithNestedAnnotations() throws IOException {
+		Map<String, List<String>> classes = Map.<String, List<String>>of(
+			"Retryable", Arrays.asList("abc.Retryable"),
+			"Backoff", Arrays.asList("abc.Backoff")
+		);
+		String java = "public class Dummy { @Retryable(backoff = @Backoff(delayExpression = 1000)) public boolean isEnabled(){ return true; } }";
+
+		ParseResult result = new ParseAction(FileSystems.getDefault(), classes).parseJavaSource(java);
+
+		assertEquals(true, result.errorMessages.isEmpty());
+		assertEquals(2, result.imports.size());
+		assertEquals(true, result.types.isEmpty());
+	}
 }
