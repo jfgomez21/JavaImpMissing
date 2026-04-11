@@ -29,6 +29,7 @@ import com.github.javaparser.ast.type.TypeParameter;
 import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
 
 import jim.models.FileTypeEntry;
+import com.github.javaparser.ast.type.WildcardType;
 
 //TODO - rename ParseActionVisitor
 public class ClassOrInterfaceTypeVisitor extends VoidVisitorAdapter<Map<String, FileTypeEntry>> {
@@ -125,15 +126,40 @@ public class ClassOrInterfaceTypeVisitor extends VoidVisitorAdapter<Map<String, 
 		}
 	}
 
+	private void processTypeArgument(Type node, Map<String, FileTypeEntry> entries){
+		if(node instanceof ClassOrInterfaceType){
+			//if the ClassOrInterfaceType does not have any type arguments
+			//then check against our list of classes and declaredClasses
+			//this filters out single letter type parameter like E and T
+			ClassOrInterfaceType type = (ClassOrInterfaceType) node;
+
+			if(!type.getTypeArguments().isPresent()){
+				String name = type.asString();
+
+				if(classes.containsKey(name) || declaredClasses.contains(name)){
+					type.accept(this, entries);
+				}
+			}
+			else{
+				type.accept(this, entries);
+			}
+		}
+		else if(node instanceof WildcardType){
+			node.accept(this, entries);
+		}
+	}
+
 	@Override
 	public void visit(ClassOrInterfaceType type, Map<String, FileTypeEntry> entries){
 		addType(type, entries);	
 
-		type.getTypeArguments().ifPresent(nodes -> nodes.forEach(node -> node.accept(this, entries)));
+		type.getTypeArguments().ifPresent(nodes -> nodes.forEach(node -> processTypeArgument(node, entries)));
 	}
 	
 	@Override
 	public void visit(TypeParameter parameter, Map<String, FileTypeEntry> entries){
+		super.visit(parameter, entries);
+
 		entries.remove(parameter.getName().asString());
 	}
 

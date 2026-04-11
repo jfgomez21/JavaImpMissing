@@ -974,4 +974,21 @@ public class TestParseAction extends AbstractJimTest {
 		assertEquals(2, result.imports.size());
 		assertEquals(true, result.types.isEmpty());
 	}
+
+	@Test
+	public void testParseJavaSourceWithNestedGenerics() throws IOException {
+		Map<String, List<String>> classes = Map.<String, List<String>>of(
+			"Collection", Arrays.asList("java.util.Collection"),
+			"Class", Arrays.asList("java.lang.Class"),
+			"String", Arrays.asList("java.lang.String")
+		);
+		String java = "public class Dummy { public <E, T extends Collection<E>> T method(Class<T> type, Class<E> elementType, String value) { return null; } }";
+
+		ParseResult result = new ParseAction(FileSystems.getDefault(), classes).parseJavaSource(java);
+
+		assertEquals(true, result.errorMessages.isEmpty());
+		assertEquals(1, result.imports.size());
+		assertEquals(true, result.types.isEmpty());
+	}
+	
 }
